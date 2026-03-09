@@ -1,0 +1,144 @@
+body {
+    background-color: #4db5ff;
+    text-align: center;
+
+}
+
+h1 {
+    font-weight: 800;
+    color: #ffff;
+    font-style: normal;
+}
+
+form {
+    margin-left: 50px;
+    width: 400px;
+}
+
+.form-control {
+    background-color: #e8e8e8;
+}
+
+.botao-direita {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+.botao-esquerda {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+
+#cubo {
+    background-color: #0077c8;
+    width: 500px;
+    height: 100px;
+    position: absolute;
+    top: 60px;
+    right: 300px;
+    border-radius: 23px;
+}
+
+#cubo2 {
+    background-color: #0077c8;
+    width: 1500px;
+    height: 650px;
+    position: absolute;
+    left: 200px;
+    border-radius: 23px;
+    top: 260px
+}
+
+
+#texto1 {
+    /*writing-mode:vertical-rl;
+    text-orientation:upright;*/
+    font-size: 40px;
+    width: 50px;
+    height: 100px;
+    position: absolute;
+    right: 690px;
+    top: 210px
+}
+
+#texto2 {
+    /*writing-mode:vertical-rl;
+    text-orientation:upright;*/
+    font-size: 40px;
+    width: 50px;
+    height: 100px;
+    position: absolute;
+    left: 530px;
+    top: 210px
+}
+
+#tabela {
+    width: 1400px;
+    height: 550px;
+    position: absolute;
+    top: 300px;
+    left: 250px;
+    border-radius: 23px;
+    font-size: 30px;
+}
+
+/*--novos items--*/
+
+#cubo_N {
+    background-color: #0077c8;
+    width: 1500px;
+    height: 500px;
+    position: absolute;
+    left: 200px;
+    border-radius: 23px;
+    top: 260px
+}
+
+#texto_N2 {
+    /*writing-mode: vertical-rl;
+    text-orientation: upright;*/
+     font-size: 40px;
+    width: 50px;
+    height: 100px;
+    position: absolute;
+    left: 400px;
+    top: 210px
+}
+
+#texto_N1 {
+    /*writing-mode: vertical-rl;
+    text-orientation: upright;*/
+    font-size: 40px;
+    width: 50px;
+    height: 100px;
+    position: absolute;
+    right: 580px;
+    top: 210px
+}
+
+.botao_cadastro{
+     position: fixed;
+    bottom: 70px;
+    right: 900px;
+    width: 150px;
+    height: 100px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+#Cadastro{
+    background-color: #0077c8;
+        width: 500px;
+        height: 100px;
+        position: absolute;
+        top: 60px;
+        right: 300px;
+        border-radius: 23px;
+    }

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Requisições</title>
+    <link rel="stylesheet" href="estoque.css">
+</head>
+<body>
+
+    <h1>Histórico de Requisições</h1>
+
+    <div class="table-container">
+        <div class="header-buttons">
+            <button class="btn btn-back" onclick="window.location.href='S_Estoque.html'">⬅ Voltar ao Estoque</button>
+            <button class="btn btn-clear" onclick="clearHistory()">🗑️ Limpar Histórico</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome do Produto</th>
+                    <th>Quantidade</th>
+                    <th>Requisitante</th>
+                    <th>Data da Requisição</th>
+                </tr>
+            </thead>
+            <tbody id="history-body">
+                <!-- Os itens requisitados serão inseridos aqui via JS -->
+            </tbody>
+        </table>
+
+        <div id="empty-message" style="display: none; text-align: center; padding: 20px; color: #666;">
+            Nenhuma requisição realizada ainda.
+        </div>
+    </div>
+
+    <script>
+        // Carregar histórico de requisições do localStorage
+        let requestedItems = [];
+
+        function loadHistory() {
+            const savedRequests = localStorage.getItem('requestedItems');
+            if (savedRequests) {
+                requestedItems = JSON.parse(savedRequests);
+            }
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-body');
+            const emptyMessage = document.getElementById('empty-message');
+            
+            tbody.innerHTML = '';
+
+            if (requestedItems.length === 0) {
+                emptyMessage.style.display = 'block';
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+
+            requestedItems.forEach(item => {
+                const row = `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.name}</td>
+                        <td>${item.qty}</td>
+                        <td>${item.requester}</td>
+                        <td>${item.requestDate || 'Data não disponível'}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function clearHistory() {
+            if (confirm('Tem certeza que deseja limpar todo o histórico de requisições?')) {
+                requestedItems = [];
+                localStorage.setItem('requestedItems', JSON.stringify(requestedItems));
+                renderHistory();
+            }
+        }
+
+        // Carregar ao iniciar
+        loadHistory();
+    </script>
+</body>
+</html>
+
