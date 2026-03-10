@@ -93,7 +93,7 @@ tr:hover { background-color: #f1f1f1; }
     background-color: #007bff; 
     color: rgb(253, 253, 253); 
 }
-.btn-request:hover { background-color: #ffffff; }
+.btn-request:hover { background-color: #0056b3; }
 
 .btn-nav {
     background-color: #0c038f;

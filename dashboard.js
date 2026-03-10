@@ -66,3 +66,11 @@ setInterval(() => {
 // Executar ao carregar a página
 document.addEventListener('DOMContentLoaded', initDashboard);
 
+// --- FUNÇÕES DO MODAL (ADICIONAR/EDITAR) ---
+function openAddModal() {
+    document.getElementById('modalTitle').innerText = "Adicionar Novo Item";
+    document.getElementById('itemForm').reset();
+    document.getElementById('itemId').value = ''; // Limpa ID para indicar "Novo"
+    document.getElementById('itemModal').style.display = 'flex';
+}
+

@@ -1,7 +1,7 @@
 function verificar_login() {
 
-    let user_trufh = "admin";
-    let password_trufh = "admin";
+    let usuario_correto = "admin";
+    let senha_correta = "admin";
 
     let user = document.getElementById("Login").value;
     let password = document.getElementById("password").value;
@@ -9,9 +9,9 @@ function verificar_login() {
     console.log(user);
     console.log(password);
 
-    if(user == user_trufh && password == password_trufh) {
+    if(user == usuario_correto && password == senha_correta) {
         window.location.href = "dashboard.html";
     }else{
-        alert("alguma coisa está errada!!");
+        alert("Login ou senha incorretos!");
     }
 }
