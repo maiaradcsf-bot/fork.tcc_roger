@@ -14,26 +14,22 @@
 </head>
 <body>
 
-     <img src="imagens/sesi-logo.png" class="sesi-logo" height="270px" width="800px" >  <br><br>
+   <img src="imagens/sesi-logo.png" class="sesi-logo" height="270px" width="800px" alt="Logo SESI">
+   <br><br>
    <h1>almoxarifado</h1> 
 
-   
-   
-
-<div style="background-color: white; width: 500px; height: 500px; position:absolute; left: 700px; border-radius: 23px;" >
+<div class="login-container">
     <form>
         <div class="mb-3">
-            <label for="exampleInputEmail1" class="form-label">Login:</label>
-            <input type="text" class="form-control" id="Login">
+            <label for="Login" class="form-label">Login:</label>
+            <input type="text" class="form-control" id="Login" placeholder="Usuário">
         </div>
         <div class="mb-3">
-            <label for="exampleInputPassword1" class="form-label">Senha:</label>
-            <input type="password" class="form-control " id="password">
-    </form>
-    <br>
-     
+            <label for="password" class="form-label">Senha:</label>
+            <input type="password" class="form-control" id="password" placeholder="Senha">
+        </div>
         <button type="button" class="btn btn-primary" onclick="verificar_login()">Entrar</button>
-
+    </form>
 </div>
 
 </body>
