@@ -152,3 +152,8 @@ form {
         right: 300px;
         border-radius: 23px;
     }
+
+
+    .container{
+        background-color: white; width: 500px; height: 500px; position:absolute; left: 585px; border-radius: 23px;
+    }

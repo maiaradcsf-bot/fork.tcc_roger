@@ -10,7 +10,7 @@ function verificar_login() {
     console.log(password);
 
     if(user == usuario_correto && password == senha_correta) {
-        window.location.href = "dashboard.html";
+        window.location.href = "./dashboard";
     }else{
         alert("Login ou senha incorretos!");
     }
