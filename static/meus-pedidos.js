@@ -36,12 +36,23 @@ let requestedItems = [];
         }
 
         function clearHistory() {
-            if (confirm('Tem certeza que deseja limpar todo o histórico de requisições?')) {
-                requestedItems = [];
-                localStorage.setItem('requestedItems', JSON.stringify(requestedItems));
-                renderHistory();
-                Swal.fire('Limpado!', 'O histórico foi removido.', 'success');
-            }
+            Swal.fire({
+                title: 'Tem certeza?',
+                text: "Tem certeza que deseja limpar todo o histórico de requisições?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sim, limpar histórico!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    requestedItems = [];
+                    localStorage.setItem('requestedItems', JSON.stringify(requestedItems));
+                    renderHistory();
+                    Swal.fire('Limpado!', 'O histórico foi removido.', 'success');
+                }
+            });
         }
 
         // Carregar ao iniciar

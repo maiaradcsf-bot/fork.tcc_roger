@@ -1,6 +1,22 @@
 body {
     background-color: #4db5ff;
     text-align: center;
+}
+h1 {
+    font-weight: 800;
+    color: #fff;
+    font-style: normal;
+}
+form {
+    margin-left: 50px;
+    width: 400px;
+}
+.form-control {
+    background-color: #e8e8e8;
+}
+body {
+    background-color: #4db5ff;
+    text-align: center;
 
 }
 
@@ -89,15 +105,7 @@ form {
     font-size: 30px;
 }
 
-.login-container {
-    background-color: white;
-    width: 500px;
-    height: 500px;
-    position: absolute;
-    left: 570px;
-    border-radius: 23px;
-    padding: 20px;
-}
+
 
 /*--novos items--*/
 
