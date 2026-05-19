@@ -9,6 +9,24 @@ const itemsDisponiveis = [
     'Webcam Full HD'
 ];
 
+
+// Função de teste para pegar itens da api
+async function getItens() {
+    try {
+        const response = await fetch('/api/products')
+        if(!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log(data)
+    } catch(error) {
+        console.error(`ERRO: `, error)
+    }
+}
+
+getItens()
+
 // Função para gerar ID único
 function gerarIdUnico() {
     return Math.floor(Math.random() * 10000) + 1;
