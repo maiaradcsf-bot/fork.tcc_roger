@@ -1,5 +1,4 @@
 body {
-    background-color: #4db5ff;
     text-align: center;
 }
 h1 {
@@ -11,26 +10,6 @@ form {
     margin-left: 50px;
     width: 400px;
 }
-.form-control {
-    background-color: #e8e8e8;
-}
-body {
-    background-color: #4db5ff;
-    text-align: center;
-
-}
-
-h1 {
-    font-weight: 800;
-    color: #ffff;
-    font-style: normal;
-}
-
-form {
-    margin-left: 50px;
-    width: 400px;
-}
-
 .form-control {
     background-color: #e8e8e8;
 }
