@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql_tcc_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_altere_isso
+      MYSQL_DATABASE: tcc_database
+      MYSQL_USER: tcc_user
+      MYSQL_PASSWORD: tcc_password
+    ports:
+      - "3306:3306"
+    volumes:
+      # Garante que os dados do banco não sumam quando o container for parado
+      - mysql_data:/var/lib/mysql
+  web:
+    build:
+      context: ./fork.tcc_roger
+      dockerfile: ./Dockerfile
+    container_name: flask_tcc_app
+    ports:
+      - "5000:5000"
+    volumes:
+      # O volume espelha seu código local no container para habilitar o live-reload (mudou no PC, muda no container)
+      - ./fork.tcc_roger:/app
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DB_HOST=db
+      - DB_USER=tcc_user
+      - DB_PASSWORD=tcc_password
+      - DB_NAME=tcc_database
+    depends_on:
+      - db
+
+volumes:
+  mysql_data:
