@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Almoxarifado - Meus Pedidos{% endblock %}
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
+{% block pedidos_active %}active{% endblock %}
+{% block content %}
+    <div class="table-header-wrapper">
+        <h3>Meus Pedidos</h3>
+        <button type="button" class="btn btn-outline-danger" onclick="clearHistory()">Limpar Histórico</button>
+    </div>
+    <div class="container-box">
+        <table class="table table-striped">
+            <thead class="table-primary">
+                <tr>
+                    <th>ID</th>
+                    <th>Nome do Produto</th>
+                    <th>Quantidade</th>
+                    <th>Email</th>
+                    <th>Data da Requisição</th>
+                </tr>
+            </thead>
+            <tbody id="history-body"> </tbody>
+        </table>
+        <div id="empty-message" class="empty-state-message">
+            <p class="text-muted">Nenhuma requisição realizada ainda.</p>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='meus-pedidos.js') }}"></script>
+{% endblock %}

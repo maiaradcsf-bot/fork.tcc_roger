@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Almoxarifado - Estoque{% endblock %}
+{% block head_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% endblock %}
+{% block estoque_active %}active{% endblock %}
+{% block content %}
+    <div class="table-header-wrapper d-flex justify-content-between align-items-center mb-3">
+        <h3>Estoque</h3>
+        <button type="button" class="btn btn-primary" onclick="modalAdicionar()">Adicionar Item</button>
+    </div>
+
+    <div id="product-row" class="row"></div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}
