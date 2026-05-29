@@ -108,7 +108,13 @@ cp .env.example .env
 
 #### 3. Construir e Iniciar os Containers
 ```bash
-docker compose up --build
+mkdir -R ./.docker/mysql
+
+docker compose up mysql -d
+
+# espere por 60 segundos ate o banco todo iniciar
+
+docker compose up -d
 ```
 
 A primeira execução vai:
