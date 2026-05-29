@@ -1,0 +1,354 @@
+{
+  "info": {
+    "name": "SESI E-commerce API",
+    "description": "Collection of API endpoints for SESI e-commerce demo, including client auth, admin management, products, categories, carts, orders, and stock movements.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:80/api" },
+    { "key": "client_email", "value": "client@example.com" },
+    { "key": "client_password", "value": "clientpass" },
+    { "key": "admin_username", "value": "admin" },
+    { "key": "admin_password", "value": "adminpass" },
+    { "key": "client_token", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "product_id", "value": "1" },
+    { "key": "category_id", "value": "1" },
+    { "key": "stock_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Client Auth",
+      "item": [
+        {
+          "name": "Client Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Client Example\",\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\",\n  \"phone\": \"(11) 99999-9999\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/client/register", "host": ["{{base_url}}"], "path": ["client", "register"] }
+          }
+        },
+        {
+          "name": "Client Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/client/login", "host": ["{{base_url}}"], "path": ["client", "login"] }
+          }
+        },
+        {
+          "name": "Client Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/logout", "host": ["{{base_url}}"], "path": ["client", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/login", "host": ["{{base_url}}"], "path": ["admin", "login"] }
+          }
+        },
+        {
+          "name": "Admin Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/logout", "host": ["{{base_url}}"], "path": ["admin", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Endpoints",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/products", "host": ["{{base_url}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "List Subcategories",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/categories/{{category_id}}/subcategories", "host": ["{{base_url}}"], "path": ["categories", "{{category_id}}", "subcategories"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client Endpoints",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/profile", "host": ["{{base_url}}"], "path": ["client", "profile"] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"(11) 98888-8888\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/client/profile", "host": ["{{base_url}}"], "path": ["client", "profile"] }
+          }
+        },
+        {
+          "name": "List Carts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/carts", "host": ["{{base_url}}"], "path": ["client", "carts"] }
+          }
+        },
+        {
+          "name": "Create Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/carts", "host": ["{{base_url}}"], "path": ["client", "carts"] }
+          }
+        },
+        {
+          "name": "Add Item to Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 1\n}"
+            },
+            "url": { "raw": "{{base_url}}/client/carts/{{product_id}}/items", "host": ["{{base_url}}"], "path": ["client", "carts", "{{product_id}}", "items"] }
+          }
+        },
+        {
+          "name": "Checkout Cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/carts/{{product_id}}/checkout", "host": ["{{base_url}}"], "path": ["client", "carts", "{{product_id}}", "checkout"] }
+          }
+        },
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{client_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/client/orders", "host": ["{{base_url}}"], "path": ["client", "orders"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Endpoints",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/products", "host": ["{{base_url}}"], "path": ["admin", "products"] }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sample Product\",\n  \"description\": \"Sample description\",\n  \"price\": 19.99\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/products", "host": ["{{base_url}}"], "path": ["admin", "products"] }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 24.99\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/products/{{product_id}}", "host": ["{{base_url}}"], "path": ["admin", "products", "{{product_id}}"] }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/products/{{product_id}}", "host": ["{{base_url}}"], "path": ["admin", "products", "{{product_id}}"] }
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/categories", "host": ["{{base_url}}"], "path": ["admin", "categories"] }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Category\",\n  \"description\": \"Category description\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/categories", "host": ["{{base_url}}"], "path": ["admin", "categories"] }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated category description\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/categories/{{category_id}}", "host": ["{{base_url}}"], "path": ["admin", "categories", "{{category_id}}"] }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/categories/{{category_id}}", "host": ["{{base_url}}"], "path": ["admin", "categories", "{{category_id}}"] }
+          }
+        },
+        {
+          "name": "List Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/stock", "host": ["{{base_url}}"], "path": ["admin", "stock"] }
+          }
+        },
+        {
+          "name": "List Stock Moves",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/stock/moves", "host": ["{{base_url}}"], "path": ["admin", "stock", "moves"] }
+          }
+        },
+        {
+          "name": "Create Stock Move",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock_id\": {{stock_id}},\n  \"quantity_change\": 10,\n  \"reason\": \"Restock\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/admin/stock/moves", "host": ["{{base_url}}"], "path": ["admin", "stock", "moves"] }
+          }
+        },
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/orders", "host": ["{{base_url}}"], "path": ["admin", "orders"] }
+          }
+        }
+      ]
+    }
+  ]
+}

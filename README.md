@@ -19,8 +19,68 @@ Sistema de gerenciamento de pedidos desenvolvido em Flask com MySQL, utilizando 
 ├── docker-compose.yml     # Definição dos serviços Docker
 ├── .env.example          # Exemplo de variáveis de ambiente
 ├── .gitignore            # Arquivo de exclusão do Git
+├── postman_collection.json # Coleção de API para Postman
 └── README.md             # Este arquivo
 ```
+
+## 🗂️ Estrutura do Banco de Dados
+
+Tabelas principais:
+- `users`: usuários administrativos com `username`, `email`, `password`, `auth_token`
+- `clients`: clientes com `name`, `email`, `password`, `phone`, `auth_token`
+- `categories`: categorias de produtos com `name`, `description`, `parent_id` (subcategorias)
+- `products`: produtos com `name`, `description`, `price`, `photo_path`
+- `product_categories`: tabela de associação entre produtos e categorias
+- `stock`: estoque de produtos com `product_id`, `quantity`
+- `stock_moves`: histórico de movimentações de estoque com `stock_id`, `quantity_change`, `reason`, `created_at`
+- `carts`: carrinhos de compras com `client_id`, `status`, `created_at`, `updated_at`
+- `cart_items`: itens de carrinho com `cart_id`, `product_id`, `quantity`
+- `orders`: pedidos com `client_id`, `cart_id`, `status`, `total`, `created_at`
+- `order_items`: itens de pedido com `order_id`, `product_id`, `quantity`, `unit_price`
+- `addresses`: endereços com `street`, `city`, `state`, `zipcode`, `country`, `address_type`
+- `client_addresses`: relacionamento cliente-endereço
+- `rules`, `permissions`, `rule_permissions`, `user_rules`: controle de permissões administrativas
+
+## 🧭 Estrutura da API
+
+### Autenticação
+- `POST /api/client/register` — registrar cliente
+- `POST /api/client/login` — login de cliente
+- `POST /api/client/logout` — logout de cliente
+- `POST /api/admin/login` — login de administrador
+- `POST /api/admin/logout` — logout de administrador
+
+### Cliente
+- `GET /api/client/profile`
+- `PUT /api/client/profile`
+- `GET /api/client/orders`
+- `GET /api/client/carts`
+- `POST /api/client/carts`
+- `POST /api/client/carts/<cart_id>/items`
+- `POST /api/client/carts/<cart_id>/checkout`
+
+### Público
+- `GET /api/products`
+- `GET /api/categories`
+- `GET /api/categories/<category_id>/subcategories`
+
+### Administração
+- `GET /api/admin/products`
+- `POST /api/admin/products`
+- `PUT /api/admin/products/<product_id>`
+- `DELETE /api/admin/products/<product_id>`
+- `GET /api/admin/categories`
+- `POST /api/admin/categories`
+- `PUT /api/admin/categories/<category_id>`
+- `DELETE /api/admin/categories/<category_id>`
+- `GET /api/admin/stock`
+- `GET /api/admin/stock/moves`
+- `POST /api/admin/stock/moves`
+- `GET /api/admin/clients`
+- `GET /api/admin/orders`
+
+### Arquivo Postman
+- O arquivo de coleção Postman está em: `postman_collection.json`
 
 ## 🚀 Como Rodar o Projeto
 
@@ -65,6 +125,15 @@ docker-compose exec app flask db upgrade
 ```
 
 Isso vai criar todas as tabelas no banco de dados de acordo com os arquivos em `src/migrations/versions/`.
+
+#### 5. Rodar seeds de dados iniciais
+
+Depois que o banco estiver criado, execute:
+```bash
+docker-compose exec app python src/seeds/seed_data.py
+```
+
+Isso cria dados de exemplo para produtos, categorias, estoque, clientes, endereços e um usuário administrador.
 
 ## 🌐 Acessando a Aplicação
 
