@@ -1,5 +1,6 @@
 from app.models import db
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class Client(db.Model):
     __tablename__ = 'clients'
@@ -15,3 +16,9 @@ class Client(db.Model):
     carts = db.relationship('Cart', back_populates='client', lazy=True)
     orders = db.relationship('Order', back_populates='client', lazy=True)
     addresses = db.relationship('Address', secondary='client_addresses', back_populates='clients')
+
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)

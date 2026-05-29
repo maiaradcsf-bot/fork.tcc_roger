@@ -54,8 +54,8 @@ def client_login():
     if not email or not password:
         return jsonify({'error': 'email and password are required'}), 400
 
-    client = Client.query.filter_by(email=email, password=password).first()
-    if not client:
+    client = Client.query.filter_by(email=email).first()
+    if not client or not client.check_password(password):
         return jsonify({'error': 'Invalid email or password'}), 401
 
     client.auth_token = secrets.token_hex(32)
@@ -71,8 +71,8 @@ def admin_login():
     if not username or not password:
         return jsonify({'error': 'username and password are required'}), 400
 
-    user = User.query.filter_by(username=username, password=password).first()
-    if not user:
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.check_password(password):
         return jsonify({'error': 'Invalid username or password'}), 401
 
     user.auth_token = secrets.token_hex(32)
@@ -93,7 +93,8 @@ def client_register():
     if Client.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already registered'}), 409
 
-    client = Client(name=name, email=email, password=password, phone=phone)
+    client = Client(name=name, email=email, phone=phone)
+    client.set_password(password)
     client.auth_token = secrets.token_hex(32)
     db.session.add(client)
     db.session.commit()
@@ -154,7 +155,7 @@ def update_client_profile():
     client.email = data.get('email', client.email)
     client.phone = data.get('phone', client.phone)
     if 'password' in data:
-        client.password = data['password']
+        client.set_password(data['password'])
     db.session.commit()
     return jsonify({'message': 'Profile updated successfully'})
 

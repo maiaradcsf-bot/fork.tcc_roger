@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app import create_app
 from app.models import db
 from app.models.users import User
@@ -28,7 +33,8 @@ def seed_data():
         administrator = Rule(name='administrator', description='Regra de administrador completo')
         administrator.permissions = [admin_permission, manage_products, manage_orders, manage_clients]
 
-        admin_user = User(username='admin', email='admin@example.com', password='admin123')
+        admin_user = User(username='admin', email='admin@example.com')
+        admin_user.set_password('admin123')
         admin_user.rules = [administrator]
 
         category_food = Category(name='Foods', description='Food products')
@@ -40,7 +46,8 @@ def seed_data():
         product_1.categories = [category_food]
         product_2.categories = [category_electronics]
 
-        client = Client(name='Customer Example', email='client@example.com', password='client123', phone='(11) 99999-0000')
+        client = Client(name='Customer Example', email='client@example.com', phone='(11) 99999-0000')
+        client.set_password('client123')
         address_shipping = Address(street='Rua Principal, 100', city='São Paulo', state='SP', zipcode='01000-000', country='Brasil', address_type='shipping')
         address_billing = Address(street='Rua Secundária, 200', city='São Paulo', state='SP', zipcode='01000-001', country='Brasil', address_type='billing')
         client.addresses = [address_shipping, address_billing]

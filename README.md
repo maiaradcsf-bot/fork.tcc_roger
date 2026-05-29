@@ -16,7 +16,7 @@ Sistema de gerenciamento de pedidos desenvolvido em Flask com MySQL, utilizando 
 │   ├── migrations/        # Migrations do Alembic
 │   ├── static/            # Arquivos estáticos (CSS, JS, imagens)
 │   └── templates/         # Templates HTML
-├── docker-compose.yml     # Definição dos serviços Docker
+├── docker compose.yml     # Definição dos serviços Docker
 ├── .env.example          # Exemplo de variáveis de ambiente
 ├── .gitignore            # Arquivo de exclusão do Git
 ├── postman_collection.json # Coleção de API para Postman
@@ -108,7 +108,7 @@ cp .env.example .env
 
 #### 3. Construir e Iniciar os Containers
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 A primeira execução vai:
@@ -121,7 +121,7 @@ A primeira execução vai:
 
 Em um novo terminal, execute:
 ```bash
-docker-compose exec app flask db upgrade
+docker compose exec app flask db upgrade
 ```
 
 Isso vai criar todas as tabelas no banco de dados de acordo com os arquivos em `src/migrations/versions/`.
@@ -130,7 +130,7 @@ Isso vai criar todas as tabelas no banco de dados de acordo com os arquivos em `
 
 Depois que o banco estiver criado, execute:
 ```bash
-docker-compose exec app python src/seeds/seed_data.py
+docker compose exec app python seeds/seed_data.py
 ```
 
 Isso cria dados de exemplo para produtos, categorias, estoque, clientes, endereços e um usuário administrador.
@@ -158,32 +158,32 @@ Root Password: root
 
 ### Parar os Containers
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Ver Logs da Aplicação
 ```bash
-docker-compose logs app -f
+docker compose logs app -f
 ```
 
 ### Acessar o Shell do Container
 ```bash
-docker-compose exec app bash
+docker compose exec app bash
 ```
 
 ### Rodar as Migrations
 ```bash
-docker-compose exec app flask db upgrade
+docker compose exec app flask db upgrade
 ```
 
 ### Criar uma Nova Migration
 ```bash
-docker-compose exec app flask db migrate -m "descrição da mudança"
+docker compose exec app flask db migrate -m "descrição da mudança"
 ```
 
 ### Reverter a Última Migration
 ```bash
-docker-compose exec app flask db downgrade
+docker compose exec app flask db downgrade
 ```
 
 ## 📦 Serviços Docker
@@ -251,12 +251,12 @@ As migrations do banco de dados estão em `src/migrations/versions/`. Para criar
 1. Faça as alterações no modelo em `src/app.py`
 2. Execute:
    ```bash
-   docker-compose exec app flask db migrate -m "descrição"
+   docker compose exec app flask db migrate -m "descrição"
    ```
 3. Revise o arquivo gerado em `src/migrations/versions/`
 4. Execute a migration:
    ```bash
-   docker-compose exec app flask db upgrade
+   docker compose exec app flask db upgrade
    ```
 
 ### Hot Reload
@@ -269,15 +269,15 @@ A aplicação está configurada com debug ativado, permitindo:
 ## 🚨 Troubleshooting
 
 ### "Connection refused" ao acessar a aplicação
-- Certifique-se de que os containers estão rodando: `docker-compose ps`
-- Verifique os logs: `docker-compose logs app`
+- Certifique-se de que os containers estão rodando: `docker compose ps`
+- Verifique os logs: `docker compose logs app`
 
 ### MySQL não conecta
 - Aguarde alguns segundos na primeira execução (MySQL precisa de tempo para iniciar)
 - Verifique se o arquivo `.env` tem as credenciais corretas
 
 ### Caso a porta 80 já em uso na maquina
-Edite `docker-compose.yml` e altere a porta do Nginx e sobe o container novamente:
+Edite `docker compose.yml` e altere a porta do Nginx e sobe o container novamente:
 ```yaml
 ports:
   - "8000:80"  # Agora acesse em http://localhost:8000
@@ -285,10 +285,10 @@ ports:
 
 ### Limpar tudo e começar do zero
 ```bash
-docker-compose down -v
+docker compose down -v
 docker volume prune
-docker-compose up --build
-docker-compose exec app flask db upgrade
+docker compose up --build
+docker compose exec app flask db upgrade
 ```
 
 ## 📚 Recursos Adicionais
