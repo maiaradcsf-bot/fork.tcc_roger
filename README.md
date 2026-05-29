@@ -108,11 +108,16 @@ cp .env.example .env
 
 #### 3. Construir e Iniciar os Containers
 ```bash
-mkdir -R ./.docker/mysql
+# cria a pasta para o volume do banco de dados
+
+mkdir ./.docker/mysql
+
+# sobe o banco de dados primeiro
 
 docker compose up mysql -d
 
-# espere por 60 segundos ate o banco todo iniciar
+# espere em torno de 60 segundos ate o banco todo iniciar apos o build e start
+
 
 docker compose up -d
 ```
