@@ -1,0 +1,18 @@
+.table-header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.table-header-wrapper h3 {
+    margin: 0;
+}
+
+.table {
+    margin-top: 20px;
+}
+
+.empty-state-message {
+    margin-top: 20px;
+}

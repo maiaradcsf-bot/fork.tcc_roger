@@ -1,37 +1,85 @@
+name: tcc_sesi
 services:
-  db:
+  mysql:
     image: mysql:8.0
-    container_name: mysql_tcc_db
+    container_name: mysql
     restart: always
+    networks:
+      - network_tcc
     environment:
-      MYSQL_ROOT_PASSWORD: root_password_altere_isso
-      MYSQL_DATABASE: tcc_database
-      MYSQL_USER: tcc_user
-      MYSQL_PASSWORD: tcc_password
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      # Garante que os dados do banco não sumam quando o container for parado
-      - mysql_data:/var/lib/mysql
-  web:
-    build:
-      context: ./fork.tcc_roger
-      dockerfile: ./Dockerfile
-    container_name: flask_tcc_app
-    ports:
-      - "5000:5000"
+      - vol_database:/var/lib/mysql
+
+  app:
+    image: python:3.11-slim
+    container_name: app
+    networks:
+      - network_tcc
+    working_dir: /app
     volumes:
-      # O volume espelha seu código local no container para habilitar o live-reload (mudou no PC, muda no container)
-      - ./fork.tcc_roger:/app
+      - ./src:/app
+      - ./.docker/requirements.txt:/tmp/requirements.txt:ro
     environment:
-      - FLASK_APP=app.py
-      - FLASK_ENV=development
-      - DB_HOST=db
-      - DB_USER=tcc_user
-      - DB_PASSWORD=tcc_password
-      - DB_NAME=tcc_database
+      - FLASK_APP=${FLASK_APP}
+      - FLASK_ENV=${FLASK_ENV}
+      - DEBUG=${DEBUG}
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    expose:
+      - "5000"
+    command: >
+      sh -c "pip install --no-cache-dir -r /tmp/requirements.txt &&
+             flask db upgrade &&
+             python -m flask run --host=0.0.0.0 --port=5000"
     depends_on:
-      - db
+      - mysql
+
+  proxy:
+    image: nginx:latest
+    container_name: proxy
+    restart: always
+    networks:
+      - network_tcc
+    ports:
+      - "80:80"
+    volumes:
+      - ./.docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: always
+    networks:
+      - network_tcc
+    environment:
+      PMA_HOST: ${PMA_HOST}
+      PMA_USER: ${PMA_USER}
+      PMA_PASSWORD: ${PMA_PASSWORD}
+      PMA_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
 
 volumes:
-  mysql_data:
+  vol_database:
+    name: banco_de_dados_tcc
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./.docker/mysql
+
+networks:
+  network_tcc:
+    driver: bridge
