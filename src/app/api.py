@@ -105,6 +105,33 @@ def admin_login():
     return jsonify({'token': user.auth_token})
 
 
+@api_bp.route('/login', methods=['POST'])
+def unified_login():
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({'error': 'email and password are required'}), 400
+
+    # Try client authentication first
+    client = Client.query.filter_by(email=email).first()
+    if client and client.check_password(password):
+        if not getattr(client, 'active', True):
+            return jsonify({'error': 'Client account is inactive'}), 403
+        client.auth_token = secrets.token_hex(32)
+        db.session.commit()
+        return jsonify({'token': client.auth_token, 'role': 'client'})
+
+    # Try admin user by email
+    user = User.query.filter_by(email=email).first()
+    if user and user.check_password(password):
+        user.auth_token = secrets.token_hex(32)
+        db.session.commit()
+        return jsonify({'token': user.auth_token, 'role': 'admin'})
+
+    return jsonify({'error': 'Invalid email or password'}), 401
+
+
 @api_bp.route('/client/register', methods=['POST'])
 def client_register():
     data = request.get_json() or {}
@@ -155,7 +182,6 @@ def admin_logout():
     user.auth_token = None
     db.session.commit()
     return jsonify({'message': 'Admin logged out successfully'})
-
 
 # --- File Upload ---
 

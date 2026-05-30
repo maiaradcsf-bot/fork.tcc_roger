@@ -1,4 +1,4 @@
-const LOGIN_API_URL = '/api/admin/login';
+const LOGIN_API_URL = '/api/login';
 const REGISTER_API_URL = '/api/client/register';
 const authAlertContainer = document.getElementById('alertContainer');
 
@@ -34,12 +34,12 @@ function setButtonLoading(button, loading, text) {
 
 async function login(event) {
   event.preventDefault();
-  const username = document.getElementById('username')?.value.trim();
+  const email = document.getElementById('email')?.value.trim();
   const password = document.getElementById('password')?.value.trim();
   const loginButton = document.getElementById('loginButton');
 
-  if (!username || !password) {
-    showAuthAlert('warning', 'Preencha usuário e senha antes de continuar.');
+  if (!email || !password) {
+    showAuthAlert('warning', 'Preencha e-mail e senha antes de continuar.');
     return;
   }
 
@@ -52,7 +52,7 @@ async function login(event) {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
@@ -61,8 +61,23 @@ async function login(event) {
     }
 
     const data = await response.json();
-    localStorage.setItem('admin_token', data.token);
-    window.location.href = '/dashboard';
+    // Data may include role: 'client' or 'admin'
+    if (data.role === 'client') {
+      localStorage.setItem('client_token', data.token);
+      window.location.href = '/client/dashboard';
+      return;
+    }
+    if (data.role === 'admin') {
+      localStorage.setItem('admin_token', data.token);
+      window.location.href = '/dashboard';
+      return;
+    }
+    // Fallback: if only token present, assume admin
+    if (data.token) {
+      localStorage.setItem('admin_token', data.token);
+      window.location.href = '/dashboard';
+      return;
+    }
   } catch (error) {
     showAuthAlert('danger', `Falha no login: ${error.message}`);
   } finally {
@@ -120,10 +135,15 @@ async function registerUser(event) {
 window.addEventListener('DOMContentLoaded', () => {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
-  const token = localStorage.getItem('admin_token');
+  const adminToken = localStorage.getItem('admin_token');
+  const clientToken = localStorage.getItem('client_token');
 
-  if (token && window.location.pathname === '/') {
+  if (adminToken && window.location.pathname === '/') {
     window.location.href = '/dashboard';
+    return;
+  }
+  if (clientToken && window.location.pathname === '/') {
+    window.location.href = '/client/dashboard';
     return;
   }
 
