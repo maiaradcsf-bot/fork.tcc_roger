@@ -1,4 +1,4 @@
-{% extends "base_admin.html" %}
+{% extends "base_client.html" %}
 {% block title %}Painel do Cliente{% endblock %}
 {% block heading %}Painel do Cliente{% endblock %}
 {% block description %}Resumo das suas solicitações e catálogo de produtos.{% endblock %}
@@ -45,5 +45,5 @@
     </div>
   </section>
 
-  <script src="{{ url_for('static', filename='client.js') }}"></script>
+{% endblock %}
 {% endblock %}
