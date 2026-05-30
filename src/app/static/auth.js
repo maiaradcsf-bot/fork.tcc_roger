@@ -100,6 +100,14 @@ async function registerUser(event) {
       throw new Error(errorData?.error || `Erro ${response.status} ao cadastrar.`);
     }
 
+    const data = await response.json().catch(() => null);
+    if (data && data.token) {
+      // Armazena token do cliente e redireciona para o dashboard do cliente
+      localStorage.setItem('client_token', data.token);
+      window.location.href = '/client/dashboard';
+      return;
+    }
+
     showAuthAlert('success', 'Cadastro realizado com sucesso. Agora faça login.');
     document.getElementById('registerForm').reset();
   } catch (error) {

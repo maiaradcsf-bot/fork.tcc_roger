@@ -14,6 +14,7 @@ from app.models.carts import Cart
 from app.models.cart_items import CartItem
 from app.models.permissions import Permission
 from app.models.rules import Rule
+from app.models.client_rules import ClientRule
 from app.models import db
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -121,6 +122,17 @@ def client_register():
     client.set_password(password)
     client.auth_token = secrets.token_hex(32)
     db.session.add(client)
+    db.session.flush()
+
+    # vincular cliente à regra 'client' caso exista
+    try:
+        client_rule = Rule.query.filter_by(name='client').first()
+        if client_rule:
+            assoc = ClientRule(client_id=client.id, rule_id=client_rule.id)
+            db.session.add(assoc)
+    except Exception:
+        pass
+
     db.session.commit()
     return jsonify({'token': client.auth_token, 'id': client.id}), 201
 
@@ -252,6 +264,74 @@ def client_orders():
         })
 
     return jsonify(orders_list)
+
+
+@api_bp.route('/client/orders', methods=['POST'])
+def client_create_order():
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    data = request.get_json() or {}
+    items = data.get('items')
+    if not items or not isinstance(items, list):
+        return jsonify({'error': 'items list required'}), 400
+
+    total = 0.0
+    order = Order(client=client, status='pending', total=0)
+    db.session.add(order)
+    db.session.flush()
+
+    try:
+        for it in items:
+            product_id = it.get('product_id') or it.get('id')
+            qty = int(it.get('quantity', 0) or 0)
+            if not product_id or qty <= 0:
+                db.session.rollback()
+                return jsonify({'error': 'Each item requires product_id and positive quantity'}), 400
+
+            product = get_product_by_id(product_id)
+            if not product:
+                db.session.rollback()
+                return jsonify({'error': f'Product {product_id} not found'}), 404
+
+            unit_price = product.price or 0
+            order_item = OrderItem(order=order, product=product, quantity=qty, unit_price=unit_price)
+            db.session.add(order_item)
+            total += float(unit_price) * qty
+
+            if product.stock:
+                product.stock.quantity = max(product.stock.quantity - qty, 0)
+
+        order.total = total
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create order', 'details': str(e)}), 500
+
+    return jsonify({'order_id': order.id, 'total': float(order.total), 'status': order.status}), 201
+
+
+@api_bp.route('/client/summary', methods=['GET'])
+def client_summary():
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    orders = client.orders or []
+    total_orders = len(orders)
+    pending_count = sum(1 for o in orders if (o.status or '').lower() in ['pending', 'pendent', 'pendente'])
+    total_quantity = sum(sum((item.quantity or 0) for item in (o.items or [])) for o in orders)
+    total_product_lines = sum(len(o.items or []) for o in orders)
+    products_count = Product.query.filter(Product.deleted_at.is_(None)).count()
+
+    return jsonify({
+        'total_orders': total_orders,
+        'pending_orders': pending_count,
+        'total_quantity': total_quantity,
+        'total_product_lines': total_product_lines,
+        'products_count': products_count
+    })
 
 
 @api_bp.route('/client/carts', methods=['GET'])

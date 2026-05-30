@@ -20,3 +20,4 @@ from app.models.rules import Rule
 from app.models.permissions import Permission
 from app.models.rule_permissions import RulePermission
 from app.models.user_rules import UserRule
+from app.models.client_rules import ClientRule

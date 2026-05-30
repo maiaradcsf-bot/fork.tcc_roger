@@ -1,0 +1,17 @@
+{% extends "base_admin.html" %}
+{% block title %}Produtos - Cliente{% endblock %}
+{% block heading %}Produtos{% endblock %}
+{% block description %}Catálogo de produtos disponível para requisição.{% endblock %}
+{% block content %}
+  <section class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive mb-3">
+        <div id="clientProductsGrid" class="row row-cols-1 row-cols-md-3 g-3">
+          <div class="col text-center text-muted py-4">Carregando produtos...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="{{ url_for('static', filename='client.js') }}"></script>
+{% endblock %}

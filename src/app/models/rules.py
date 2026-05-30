@@ -9,3 +9,4 @@ class Rule(db.Model):
 
     permissions = db.relationship('Permission', secondary='rule_permissions', back_populates='rules')
     users = db.relationship('User', secondary='user_rules', back_populates='rules')
+    clients = db.relationship('Client', secondary='client_rules', back_populates='rules')

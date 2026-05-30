@@ -17,6 +17,7 @@ class Client(db.Model):
     carts = db.relationship('Cart', back_populates='client', lazy=True)
     orders = db.relationship('Order', back_populates='client', lazy=True)
     addresses = db.relationship('Address', secondary='client_addresses', back_populates='clients')
+    rules = db.relationship('Rule', secondary='client_rules', back_populates='clients')
 
     def set_password(self, password):
         self.password = generate_password_hash(password)
