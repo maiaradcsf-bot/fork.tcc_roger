@@ -11,6 +11,7 @@ class Client(db.Model):
     password = db.Column(db.String(255), nullable=False)
     phone = db.Column(db.String(50), nullable=True)
     auth_token = db.Column(db.String(255), unique=True, nullable=True)
+    active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     carts = db.relationship('Cart', back_populates='client', lazy=True)

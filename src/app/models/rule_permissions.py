@@ -1,5 +1,5 @@
 from app.models import db
-
+# Tabela de associação entre Regras de Perfil e Permissões ( Muitos para Muitos )
 class RulePermission(db.Model):
     __tablename__ = 'rule_permissions'
 

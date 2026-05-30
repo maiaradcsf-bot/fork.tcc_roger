@@ -1,4 +1,5 @@
 from app.models import db
+# Permissoes do sistema ( Criar, Editar, Excluir, modulos do sistema, etc. )
 
 class Permission(db.Model):
     __tablename__ = 'permissions'

@@ -1,3 +1,4 @@
+from pathlib import Path
 from flask import Flask
 from flask_migrate import Migrate
 from app.models import db
@@ -6,7 +7,12 @@ from config import Config
 migrate = Migrate()
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    base_path = Path(__file__).resolve().parent
+    app = Flask(
+        __name__,
+        template_folder=str(base_path / 'templates'),
+        static_folder=str(base_path / 'static'),
+    )
     app.config.from_object(config_class)
 
     # Inicializa o banco e as migrações no app

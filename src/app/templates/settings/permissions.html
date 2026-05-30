@@ -1,0 +1,70 @@
+{% extends "base_admin.html" %}
+{% block title %}Permissões - Configurações{% endblock %}
+{% block heading %}Permissões{% endblock %}
+{% block description %}Gerencie regras de acesso individuais para os módulos do sistema.{% endblock %}
+{% block content %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-4">
+        <div>
+          <h2 class="h5 mb-1">Permissões do sistema</h2>
+          <p class="text-muted mb-0">Crie e edite permissões que podem ser atribuídas a perfis.</p>
+        </div>
+        <div class="btn-group">
+          <button id="newSettingsPermissionButton" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Nova permissão
+          </button>
+          <button id="refreshSettingsPermissionsButton" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-repeat me-1"></i> Atualizar
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Permissão</th>
+              <th>Descrição</th>
+              <th class="text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="settingsPermissionsTableBody" class="table-placeholder">
+            <tr>
+              <td colspan="4" class="text-center py-5 text-muted">Carregando permissões...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="settingsPermissionModal" tabindex="-1" aria-labelledby="settingsPermissionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="settingsPermissionModalLabel">Nova Permissão</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <form id="settingsPermissionForm">
+          <input type="hidden" id="settingsPermissionId" />
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="settingsPermissionName" class="form-label">Nome</label>
+              <input type="text" id="settingsPermissionName" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label for="settingsPermissionDescription" class="form-label">Descrição</label>
+              <textarea id="settingsPermissionDescription" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar permissão</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

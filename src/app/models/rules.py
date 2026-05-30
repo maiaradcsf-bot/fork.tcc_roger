@@ -1,5 +1,5 @@
 from app.models import db
-
+# Perfis de Usuarios ( Administrador, Gerente, Funcionario, etc. )
 class Rule(db.Model):
     __tablename__ = 'rules'
 
