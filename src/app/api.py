@@ -40,6 +40,8 @@ def normalize_order_status(status):
         return OrderStatus.APPROVED.value
     if normalized in {'rejected', 'rejeitado', 'rejeitada'}:
         return OrderStatus.REJECTED.value
+    if normalized in {'cancelled', 'cancelado', 'canceled'}:
+        return OrderStatus.CANCELLED.value
     if normalized in {'completed', 'concluido', 'concluído', 'retirado', 'picked_up', 'withdrawn', 'checked_out'}:
         return OrderStatus.FINISHED.value
     return normalized
@@ -315,6 +317,78 @@ def client_orders():
     return jsonify(orders_list)
 
 
+@api_bp.route('/client/orders/<int:order_id>', methods=['GET'])
+def client_get_order(order_id):
+    client, error, status = client_required()
+    if error:
+        return error, status
+    order = Order.query.get(order_id)
+    if not order or order.client_id != client.id:
+        return jsonify({'error': 'Order not found'}), 404
+
+    # calcular total a partir do campo ou dos itens como fallback
+    total_value = None
+    try:
+        total_value = float(order.total) if order.total is not None else None
+    except Exception:
+        total_value = None
+
+    if not total_value:
+        total_value = 0.0
+        for item in order.items or []:
+            unit_price = item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)
+            try:
+                total_value += float(unit_price or 0) * (item.quantity or 0)
+            except Exception:
+                continue
+
+    return jsonify({
+        'id': order.id,
+        'client': order.client.name if order.client else None,
+        'status': order.status,
+        'total': float(total_value),
+        'created_at': order.created_at.isoformat() if order.created_at else None,
+        'items': [{
+            'product': item.product.name if item.product else None,
+            'description': item.product.description if item.product else None,
+            'image_url': item.product.photo_path if item.product else None,
+            'quantity': item.quantity,
+            'unit_price': float(item.unit_price) if item.unit_price is not None else (float(item.product.price) if item.product and getattr(item.product, 'price', None) is not None else 0),
+            'subtotal': float(item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)) * (item.quantity or 0)
+        } for item in order.items]
+    })
+
+
+@api_bp.route('/client/orders/<int:order_id>/status', methods=['PATCH'])
+def client_update_order_status(order_id):
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    order = Order.query.get(order_id)
+    if not order or order.client_id != client.id:
+        return jsonify({'error': 'Order not found'}), 404
+
+    data = request.get_json() or {}
+    action = data.get('action')
+    if not action:
+        return jsonify({'error': 'action is required'}), 400
+
+    action = action.lower()
+    # Only allow cancel from client side and only when order is pending
+    if action not in {'cancel', 'cancelled', 'canceled'}:
+        return jsonify({'error': 'Unsupported action'}), 400
+
+    current_status = normalize_order_status(order.status)
+    if current_status != OrderStatus.PENDING.value:
+        return jsonify({'error': 'Order can only be cancelled when pending'}), 400
+
+    new_status = OrderStatus.CANCELLED.value
+    order.status = new_status
+    db.session.commit()
+    return jsonify({'id': order.id, 'status': order.status})
+
+
 @api_bp.route('/client/orders', methods=['POST'])
 def client_create_order():
     client, error, status = client_required()
@@ -366,8 +440,10 @@ def client_create_order():
             total += float(unit_price) * qty
 
             if product.stock:
-                # Não reduzir estoque aqui — a baixa deve ocorrer quando o admin confirmar retirada
-                pass
+                try:
+                    current_app.logger.info(f"[OrderCreate] order_id={order.id} item product_id={product_id} qty={qty} (no stock change at creation)")
+                except Exception:
+                    pass
 
         order.total = total
         db.session.commit()
@@ -566,12 +642,16 @@ def checkout_cart(cart_id):
     total = 0
     order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0)
     db.session.add(order)
+    db.session.flush()
 
     for item in cart.items:
         order_item = OrderItem(order=order, product=item.product, quantity=item.quantity, unit_price=item.product.price)
         db.session.add(order_item)
         total += float(item.product.price or 0) * item.quantity
-        # Não reduzir estoque agora; a baixa acontecerá quando o admin confirmar retirada
+        try:
+            current_app.logger.info(f"[Checkout] order_id={getattr(order,'id',None)} item product_id={getattr(item.product,'id',None)} qty={item.quantity} (no stock change at checkout)")
+        except Exception:
+            pass
 
     cart.status = CartStatus.CLOSED.value
     order.total = total
@@ -805,7 +885,12 @@ def admin_create_stock_move():
         return jsonify({'error': 'Stock not found'}), 404
     
     quantity_change_int = int(quantity_change)
+    old_qty = stock.quantity
     stock.quantity = max(stock.quantity + quantity_change_int, 0)
+    try:
+        current_app.logger.info(f"[StockChange] admin_create_stock_move stock_id={stock.id} product_id={stock.product_id} {old_qty} -> {stock.quantity} change={quantity_change_int}")
+    except Exception:
+        pass
     
     # Determine move_type automatically
     move_type = 'entrada' if quantity_change_int > 0 else 'saida'
@@ -1283,6 +1368,9 @@ def admin_update_order_status(order_id):
         'approved': OrderStatus.APPROVED.value,
         'reject': OrderStatus.REJECTED.value,
         'rejected': OrderStatus.REJECTED.value,
+        'cancel': OrderStatus.CANCELLED.value,
+        'cancelled': OrderStatus.CANCELLED.value,
+        'canceled': OrderStatus.CANCELLED.value,
         'finish': OrderStatus.FINISHED.value,
         'finished': OrderStatus.FINISHED.value,
         'picked_up': OrderStatus.FINISHED.value,
@@ -1294,13 +1382,48 @@ def admin_update_order_status(order_id):
 
     current_status = normalize_order_status(order.status)
     allowed_transitions = {
-        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value, OrderStatus.REJECTED.value},
-        OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value},
+        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value, OrderStatus.REJECTED.value, OrderStatus.CANCELLED.value},
+        OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value, OrderStatus.CANCELLED.value},
         OrderStatus.FINISHED.value: set(),
         OrderStatus.REJECTED.value: set(),
+        OrderStatus.CANCELLED.value: set(),
     }
     if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
         return jsonify({'error': 'Invalid status transition'}), 400
+
+    # Se a transição for para 'finished', aplicar baixas de estoque e criar StockMoves
+    if new_status == OrderStatus.FINISHED.value and new_status != current_status:
+        try:
+            for item in order.items or []:
+                product = item.product
+                if not product:
+                    continue
+
+                # Garantir registro de estoque
+                stock = product.stock
+                if not stock:
+                    stock = Stock(product_id=product.id, quantity=0)
+                    db.session.add(stock)
+                    db.session.flush()
+
+                qty = int(item.quantity or 0)
+                quantity_change_int = -qty
+                old_qty = stock.quantity or 0
+                stock.quantity = max((stock.quantity or 0) + quantity_change_int, 0)
+                try:
+                    current_app.logger.info(f"[StockChange] order_finish order_id={order.id} stock_id={stock.id} product_id={product.id} {old_qty} -> {stock.quantity} change={quantity_change_int}")
+                except Exception:
+                    pass
+
+                move_type = 'entrada' if quantity_change_int > 0 else 'saida'
+                # Motivo em português com referência à solicitação e ao cliente (id + nome)
+                client_name = (order.client.name if getattr(order, 'client', None) and getattr(order.client, 'name', None) else 'Desconhecido')
+                reason = f'Solicitação de retirada #{order.id}, Cliente #{order.client_id} - {client_name}'
+                move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type)
+                db.session.add(move)
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': 'Failed to apply stock changes', 'details': str(e)}), 500
 
     order.status = new_status
     db.session.commit()

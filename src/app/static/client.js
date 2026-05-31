@@ -1,7 +1,6 @@
 // Client-side dashboard and ordering script
 let clientProductsCache = [];
 let clientOpenCart = null;
-let clientOrdersCache = [];
 let clientOrdersChartRange = 7;
 const OPEN_CART_STATUSES = ['open'];
 
@@ -122,12 +121,11 @@ async function loadClientDashboardOrders(token = getClientToken()) {
   }
 
   const orders = await response.json();
-  clientOrdersCache = Array.isArray(orders) ? orders : [];
-  updateClientDashboardFromOrders();
+  updateClientDashboardFromOrders(Array.isArray(orders) ? orders : []);
 }
 
-function updateClientDashboardFromOrders() {
-  renderClientOrdersChart(clientOrdersCache, clientOrdersChartRange);
+function updateClientDashboardFromOrders(orders) {
+  renderClientOrdersChart(Array.isArray(orders) ? orders : [], clientOrdersChartRange);
 }
 
 function buildOrdersSeries(orders, days) {
@@ -654,7 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('resize', () => {
     if (document.getElementById('clientOrdersChart')) {
-      renderClientOrdersChart(clientOrdersCache, clientOrdersChartRange);
+      // Buscar dados atualizados da API ao redimensionar, evitando cache em memória
+      loadClientDashboardOrders().catch(() => {});
     }
   });
 });

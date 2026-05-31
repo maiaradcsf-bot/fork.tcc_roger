@@ -10,4 +10,5 @@ class OrderStatus(str, Enum):
     PENDING = 'pending'
     APPROVED = 'approved'
     REJECTED = 'rejected'
+    CANCELLED = 'cancelled'
     FINISHED = 'finished'
