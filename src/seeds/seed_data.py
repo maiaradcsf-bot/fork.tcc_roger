@@ -19,6 +19,7 @@ from app.models.cart_items import CartItem
 from app.models.orders import Order
 from app.models.order_items import OrderItem
 from app.models.client_rules import ClientRule
+from app.models.status_enums import CartStatus, OrderStatus
 
 
 def seed_data():
@@ -102,7 +103,7 @@ def seed_data():
         # create a sample cart and order only if not present for this client
         existing_order = Order.query.filter_by(client_id=client.id).first()
         if not existing_order:
-            cart = Cart(client=client, status='checked_out')
+            cart = Cart(client=client, status=CartStatus.CLOSED.value)
             db.session.add(cart)
             db.session.flush()
 
@@ -111,7 +112,7 @@ def seed_data():
             db.session.add_all([item_1, item_2])
             db.session.flush()
 
-            order = Order(client=client, cart=cart, status='completed', total=round(2 * float(product_1.price) + 1 * float(product_2.price), 2))
+            order = Order(client=client, cart=cart, status=OrderStatus.FINISHED.value, total=round(2 * float(product_1.price) + 1 * float(product_2.price), 2))
             db.session.add(order)
             db.session.flush()
 

@@ -1,0 +1,8 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Categorias de Produtos - Almoxarifado{% endblock %}
+{% block heading %}Categorias de Produtos{% endblock %}
+{% block description %}Gerencie categorias e subcategorias de produtos do almoxarifado.{% endblock %}
+{% block content %}
+  {% include "admin/modules/categories/components/categories_table.html" %}
+  {% include "admin/modules/categories/components/category_modal.html" %}
+{% endblock %}

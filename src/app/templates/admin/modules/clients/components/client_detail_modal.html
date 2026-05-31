@@ -1,0 +1,38 @@
+<div class="modal fade" id="clientDetailModal" tabindex="-1" aria-labelledby="clientDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clientDetailModalLabel">Detalhes do Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-4">
+            <div class="bg-light rounded-3 p-3 h-100">
+              <h6 class="mb-3">Dados do cliente</h6>
+              <dl class="row mb-0">
+                <dt class="col-5 text-muted">Nome</dt>
+                <dd class="col-7" id="clientDetailName">--</dd>
+                <dt class="col-5 text-muted">E-mail</dt>
+                <dd class="col-7" id="clientDetailEmail">--</dd>
+                <dt class="col-5 text-muted">Telefone</dt>
+                <dd class="col-7" id="clientDetailPhone">--</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="col-12 col-md-8">
+            <div class="bg-light rounded-3 p-3 h-100">
+              <h6 class="mb-3">Solicitações do cliente</h6>
+              <div id="clientDetailOrdersList">
+                <p class="text-muted">Carregando solicitações...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>

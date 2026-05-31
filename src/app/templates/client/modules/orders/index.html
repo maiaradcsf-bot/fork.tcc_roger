@@ -1,0 +1,12 @@
+{% extends "client/base_client.html" %}
+{% block title %}Minhas Solicitações{% endblock %}
+{% block heading %}Minhas Solicitações{% endblock %}
+{% block description %}Histórico das suas solicitações.{% endblock %}
+{% block content %}
+  {% include "client/modules/orders/components/orders_table.html" %}
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='meus-pedidos.js') }}"></script>
+{% endblock %}

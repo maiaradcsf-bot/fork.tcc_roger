@@ -1,0 +1,8 @@
+{% extends "client/base_client.html" %}
+{% block title %}Painel do Cliente{% endblock %}
+{% block heading %}Painel do Cliente{% endblock %}
+{% block description %}Resumo das suas solicitações e acompanhamento de retirada.{% endblock %}
+{% block content %}
+  {% include "client/modules/dashboard/components/summary_cards.html" %}
+  {% include "client/modules/dashboard/components/orders_overview.html" %}
+{% endblock %}

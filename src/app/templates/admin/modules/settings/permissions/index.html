@@ -1,0 +1,8 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Permissões - Configurações{% endblock %}
+{% block heading %}Permissões{% endblock %}
+{% block description %}Gerencie regras de acesso individuais para os módulos do sistema.{% endblock %}
+{% block content %}
+  {% include "admin/modules/settings/permissions/components/permissions_table.html" %}
+  {% include "admin/modules/settings/permissions/components/permission_modal.html" %}
+{% endblock %}

@@ -1,0 +1,62 @@
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h6 class="text-uppercase text-muted mb-1">Solicitações</h6>
+            <p class="mb-0 small text-muted">Total de pedidos</p>
+          </div>
+          <i class="bi bi-card-checklist fs-3 text-primary"></i>
+        </div>
+        <div class="display-6 fw-bold" id="summaryOrders">--</div>
+        <a href="{{ url_for('views.orders') }}" class="stretched-link text-decoration-none">Ver solicitações</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h6 class="text-uppercase text-muted mb-1">Categorias</h6>
+            <p class="mb-0 small text-muted">Itens de produto</p>
+          </div>
+          <i class="bi bi-tags fs-3 text-success"></i>
+        </div>
+        <div class="display-6 fw-bold" id="summaryCategories">--</div>
+        <a href="{{ url_for('views.categories') }}" class="stretched-link text-decoration-none">Ver categorias</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h6 class="text-uppercase text-muted mb-1">Produtos</h6>
+            <p class="mb-0 small text-muted">Itens cadastrados</p>
+          </div>
+          <i class="bi bi-box-seam fs-3 text-warning"></i>
+        </div>
+        <div class="display-6 fw-bold" id="summaryProducts">--</div>
+        <a href="{{ url_for('views.products') }}" class="stretched-link text-decoration-none">Ver produtos</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h6 class="text-uppercase text-muted mb-1">Clientes</h6>
+            <p class="mb-0 small text-muted">Cadastros ativos</p>
+          </div>
+          <i class="bi bi-people fs-3 text-info"></i>
+        </div>
+        <div class="display-6 fw-bold" id="summaryClients">--</div>
+        <a href="{{ url_for('views.clients') }}" class="stretched-link text-decoration-none">Ver clientes</a>
+      </div>
+    </div>
+  </div>
+</div>

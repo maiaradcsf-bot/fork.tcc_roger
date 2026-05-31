@@ -120,19 +120,13 @@ function formatDate(dateString) {
 function createStatusBadge(status) {
   const normalized = (status || '').toString().toLowerCase();
   if (['approved', 'aprovado'].includes(normalized)) {
-    return '<span class="badge bg-success status-badge">Aprovado</span>';
+    return '<span class="badge bg-info text-dark status-badge">Aguardando retirada</span>';
   }
-  if (['completed', 'concluido', 'concluído'].includes(normalized)) {
-    return '<span class="badge bg-success status-badge">Concluído</span>';
-  }
-  if (['rejected', 'recusado'].includes(normalized)) {
-    return '<span class="badge bg-danger status-badge">Recusado</span>';
-  }
-  if (['picked_up', 'retirado', 'withdrawn', 'checked_out', 'checkout'].includes(normalized)) {
+  if (['finished', 'completed', 'concluido', 'concluído', 'retirado'].includes(normalized)) {
     return '<span class="badge bg-primary status-badge">Retirado</span>';
   }
-  if (['pending', 'pendent', 'pendente'].includes(normalized)) {
-    return '<span class="badge bg-warning text-dark status-badge">Pendente</span>';
+  if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalized)) {
+    return '<span class="badge bg-warning text-dark status-badge">Aguardando aprovação</span>';
   }
   if (['cancelled', 'cancelado', 'canceled'].includes(normalized)) {
     return '<span class="badge bg-secondary status-badge">Cancelado</span>';
@@ -184,7 +178,7 @@ async function loadDashboardSummary() {
     if (summaryClients) summaryClients.textContent = Array.isArray(clients) ? clients.length : '—';
     if (summaryPendingOrders) {
       const pendingCount = Array.isArray(orders)
-        ? orders.filter((order) => ['pending', 'pendent', 'pendente'].includes((order.status || '').toString().toLowerCase())).length
+        ? orders.filter((order) => ['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes((order.status || '').toString().toLowerCase())).length
         : '—';
       summaryPendingOrders.textContent = pendingCount;
     }
@@ -201,7 +195,7 @@ async function loadDashboardSummary() {
 
 async function loadOrders(button = null) {
   if (!ordersTableBody) return;
-  renderTablePlaceholder(ordersTableBody, 7, 'Carregando pedidos...');
+  renderTablePlaceholder(ordersTableBody, 8, 'Carregando pedidos...');
   setLoadingState(button, true);
 
   try {
@@ -210,7 +204,7 @@ async function loadOrders(button = null) {
     if (!Array.isArray(orders) || orders.length === 0) {
       ordersTableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center py-5 text-muted">Nenhuma solicitação encontrada.</td>
+          <td colspan="8" class="text-center py-5 text-muted">Nenhuma solicitação encontrada.</td>
         </tr>
       `;
       return;
@@ -224,6 +218,15 @@ async function loadOrders(button = null) {
         const clientName = order.client || order.client_name || '—';
         const quantity = order.quantity ?? order.qty ?? '—';
 
+        const normalizedStatus = (order.status || '').toString().toLowerCase();
+        const actionButtons = [];
+        if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
+          actionButtons.push(`<button type="button" class="btn btn-success" onclick="handleAdminOrderAction(${order.id}, 'approve', this)">Aprovar</button>`);
+        }
+        if (['approved', 'aprovado'].includes(normalizedStatus)) {
+          actionButtons.push(`<button type="button" class="btn btn-primary" onclick="handleAdminOrderAction(${order.id}, 'finish', this)">Retirado</button>`);
+        }
+
         return `
           <tr>
             <th scope="row">${index + 1}</th>
@@ -236,9 +239,7 @@ async function loadOrders(button = null) {
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
                 <button type="button" class="btn btn-info" onclick="openOrderDetailModal(${order.id})">Detalhes</button>
-                <button type="button" class="btn btn-success" onclick="handleAdminOrderAction(${order.id}, 'approve', this)">Aprovar</button>
-                <button type="button" class="btn btn-danger" onclick="handleAdminOrderAction(${order.id}, 'reject', this)">Recusar</button>
-                <button type="button" class="btn btn-primary" onclick="handleAdminOrderAction(${order.id}, 'picked_up', this)">Retirado</button>
+                ${actionButtons.join('')}
               </div>
             </td>
           </tr>
@@ -248,7 +249,7 @@ async function loadOrders(button = null) {
   } catch (error) {
     ordersTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center py-5 text-danger">Falha ao carregar pedidos: ${error.message}</td>
+        <td colspan="8" class="text-center py-5 text-danger">Falha ao carregar pedidos: ${error.message}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar pedidos: ${error.message}`);
@@ -475,7 +476,6 @@ async function loadClients(button = null) {
         </tr>
       `)
       .join('');
-    await loadClientsSummary();
   } catch (error) {
     clientsTableBody.innerHTML = `
       <tr>
@@ -488,24 +488,6 @@ async function loadClients(button = null) {
   }
 }
 
-async function loadClientsSummary(button = null) {
-  if (!clientsOrdersCount || !clientsOrdersQuantity || !clientsOrdersProducts) return;
-  setLoadingState(button, true);
-
-  try {
-    const summary = await fetchJson('/clients/summary');
-    clientsOrdersCount.textContent = summary.total_orders ?? 0;
-    clientsOrdersQuantity.textContent = summary.total_quantity ?? 0;
-    clientsOrdersProducts.textContent = summary.total_product_lines ?? 0;
-  } catch (error) {
-    clientsOrdersCount.textContent = '--';
-    clientsOrdersQuantity.textContent = '--';
-    clientsOrdersProducts.textContent = '--';
-    showAlert('danger', `Erro ao carregar resumo de solicitações: ${error.message}`);
-  } finally {
-    setLoadingState(button, false);
-  }
-}
 
 function renderClientOrdersList(orders) {
   if (!clientDetailOrdersList) return;
@@ -1450,7 +1432,14 @@ function handleClientTableClick(event) {
 window.handleAdminOrderAction = async function (orderId, action, button) {
   setLoadingState(button, true);
   try {
-    showAlert('info', `Ação de pedido '${action}' para item ${orderId} ainda não está implementada no backend.`);
+    await fetchJson(`/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    showAlert('success', 'Status da solicitação atualizado.');
+    await loadOrders();
+    await loadDashboardSummary();
   } catch (error) {
     showAlert('danger', `Falha ao atualizar pedido ${orderId}: ${error.message}`);
   } finally {
@@ -1508,7 +1497,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (categoriesTableBody) loadCategories();
   if (productsTableBody || stockMovesTableBody) loadProducts();
   if (clientsTableBody) loadClients();
-  if (clientsOrdersCount || clientsOrdersQuantity || clientsOrdersProducts) loadClientsSummary();
   if (settingsUsersTableBody) loadSettingsUsers();
   if (settingsPermissionsTableBody) loadSettingsPermissions();
   if (settingsProfilesTableBody) loadSettingsProfiles();

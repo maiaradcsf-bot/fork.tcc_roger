@@ -1,0 +1,38 @@
+<div class="modal fade" id="stockMoveModal" tabindex="-1" aria-labelledby="stockMoveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="stockMoveModalLabel">Nova Movimentação de Estoque</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form id="stockMoveForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="stockItemSelect" class="form-label">Item de estoque</label>
+            <select id="stockItemSelect" class="form-select" required></select>
+          </div>
+          <div class="mb-3">
+            <label for="stockMoveType" class="form-label">Tipo de movimentação</label>
+            <select id="stockMoveType" class="form-select" required>
+              <option value="">Selecione...</option>
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="stockQuantityChange" class="form-label">Quantidade</label>
+            <input type="number" id="stockQuantityChange" class="form-control" min="1" required />
+          </div>
+          <div class="mb-3">
+            <label for="stockReason" class="form-label">Motivo</label>
+            <textarea id="stockReason" class="form-control" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning text-dark">Salvar movimentação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

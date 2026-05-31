@@ -15,6 +15,7 @@ from app.models.cart_items import CartItem
 from app.models.permissions import Permission
 from app.models.rules import Rule
 from app.models.client_rules import ClientRule
+from app.models.status_enums import CartStatus, OrderStatus
 from app.models import db
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -26,6 +27,20 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+OPEN_CART_STATUSES = {CartStatus.OPEN.value}
+
+
+def normalize_order_status(status):
+    normalized = (status or '').lower()
+    if normalized in {'initial', 'inicial', 'pendent', 'pendente'}:
+        return OrderStatus.PENDING.value
+    if normalized in {'aprovado'}:
+        return OrderStatus.APPROVED.value
+    if normalized in {'completed', 'concluido', 'concluído', 'retirado', 'picked_up', 'withdrawn', 'checked_out'}:
+        return OrderStatus.FINISHED.value
+    return normalized
 
 def get_active_products():
     """Return only non-deleted products"""
@@ -260,7 +275,8 @@ def client_orders():
     if error:
         return error, status
     orders_list = []
-    for order in client.orders:
+    orders = Order.query.filter_by(client_id=client.id).order_by(Order.created_at.desc(), Order.id.desc()).all()
+    for order in orders:
         # calcular total a partir do campo ou dos itens como fallback
         total_value = None
         try:
@@ -281,11 +297,16 @@ def client_orders():
             'id': order.id,
             'status': order.status,
             'total': float(total_value),
+            'product_summary': ', '.join([item.product.name for item in order.items if item.product]) or None,
+            'quantity_total': sum([item.quantity for item in order.items]) if order.items else 0,
+            'cart_id': order.cart_id,
             'created_at': order.created_at.isoformat() if order.created_at else None,
             'items': [{
                 'product': item.product.name if item.product else None,
+                'product_name': item.product.name if item.product else None,
                 'quantity': item.quantity,
-                'unit_price': float(item.unit_price) if item.unit_price is not None else (float(item.product.price) if item.product and getattr(item.product, 'price', None) is not None else 0)
+                'unit_price': float(item.unit_price) if item.unit_price is not None else (float(item.product.price) if item.product and getattr(item.product, 'price', None) is not None else 0),
+                'subtotal': float(item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)) * (item.quantity or 0)
             } for item in order.items]
         })
 
@@ -304,7 +325,11 @@ def client_create_order():
         return jsonify({'error': 'items list required'}), 400
 
     total = 0.0
-    order = Order(client=client, status='pending', total=0)
+    cart = Cart(client=client, status=CartStatus.CLOSED.value)
+    db.session.add(cart)
+    db.session.flush()
+
+    order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0)
     db.session.add(order)
     db.session.flush()
 
@@ -321,8 +346,20 @@ def client_create_order():
                 db.session.rollback()
                 return jsonify({'error': f'Product {product_id} not found'}), 404
 
+            stock_quantity = product.stock.quantity if product.stock else 0
+            if qty > stock_quantity:
+                db.session.rollback()
+                return jsonify({
+                    'error': f'Requested quantity exceeds available stock for product {product_id}',
+                    'product_id': product_id,
+                    'stock': stock_quantity,
+                    'requested_quantity': qty
+                }), 400
+
             unit_price = product.price or 0
+            cart_item = CartItem(cart=cart, product=product, quantity=qty)
             order_item = OrderItem(order=order, product=product, quantity=qty, unit_price=unit_price)
+            db.session.add(cart_item)
             db.session.add(order_item)
             total += float(unit_price) * qty
 
@@ -335,7 +372,7 @@ def client_create_order():
         db.session.rollback()
         return jsonify({'error': 'Failed to create order', 'details': str(e)}), 500
 
-    return jsonify({'order_id': order.id, 'total': float(order.total), 'status': order.status}), 201
+    return jsonify({'order_id': order.id, 'cart_id': cart.id, 'total': float(order.total), 'status': order.status}), 201
 
 
 @api_bp.route('/client/summary', methods=['GET'])
@@ -346,16 +383,22 @@ def client_summary():
 
     orders = client.orders or []
     total_orders = len(orders)
-    pending_count = sum(1 for o in orders if (o.status or '').lower() in ['pending', 'pendent', 'pendente'])
+    pending_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.PENDING.value)
+    approved_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.APPROVED.value)
+    finished_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.FINISHED.value)
     total_quantity = sum(sum((item.quantity or 0) for item in (o.items or [])) for o in orders)
     total_product_lines = sum(len(o.items or []) for o in orders)
+    total_value = sum(float(o.total or 0) for o in orders)
     products_count = Product.query.filter(Product.deleted_at.is_(None)).count()
 
     return jsonify({
         'total_orders': total_orders,
         'pending_orders': pending_count,
+        'approved_orders': approved_count,
+        'finished_orders': finished_count,
         'total_quantity': total_quantity,
         'total_product_lines': total_product_lines,
+        'total_value': total_value,
         'products_count': products_count
     })
 
@@ -375,7 +418,10 @@ def client_carts():
             'id': item.id,
             'product_id': item.product_id,
             'product_name': item.product.name if item.product else None,
-            'quantity': item.quantity
+            'quantity': item.quantity,
+            'unit_price': float(item.product.price) if item.product and item.product.price is not None else 0,
+            'stock': item.product.stock.quantity if item.product and item.product.stock else 0,
+            'subtotal': float(item.product.price or 0) * item.quantity if item.product else 0
         } for item in cart.items]
     } for cart in client.carts])
 
@@ -386,7 +432,7 @@ def create_client_cart():
     if error:
         return error, status
 
-    cart = Cart(client=client, status='active')
+    cart = Cart(client=client, status=CartStatus.OPEN.value)
     db.session.add(cart)
     db.session.commit()
     return jsonify({'id': cart.id, 'status': cart.status}), 201
@@ -399,12 +445,15 @@ def add_cart_item(cart_id):
         return error, status
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
-    if not cart or cart.status != 'active':
-        return jsonify({'error': 'Cart not found or not active'}), 404
+    if not cart or cart.status not in OPEN_CART_STATUSES:
+        return jsonify({'error': 'Cart not found or not open'}), 404
 
     data = request.get_json() or {}
     product_id = data.get('product_id')
-    quantity = int(data.get('quantity', 1))
+    try:
+        quantity = int(data.get('quantity', 1))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'product_id and positive quantity are required'}), 400
     if not product_id or quantity < 1:
         return jsonify({'error': 'product_id and positive quantity are required'}), 400
 
@@ -412,7 +461,17 @@ def add_cart_item(cart_id):
     if not product:
         return jsonify({'error': 'Product not found'}), 404
 
+    stock_quantity = product.stock.quantity if product.stock else 0
     item = CartItem.query.filter_by(cart_id=cart.id, product_id=product.id).first()
+    current_quantity = item.quantity if item else 0
+    if current_quantity + quantity > stock_quantity:
+        return jsonify({
+            'error': 'Requested quantity exceeds available stock',
+            'stock': stock_quantity,
+            'current_quantity': current_quantity,
+            'available_quantity': max(stock_quantity - current_quantity, 0)
+        }), 400
+
     if item:
         item.quantity += quantity
     else:
@@ -423,6 +482,61 @@ def add_cart_item(cart_id):
     return jsonify({'id': item.id, 'product_id': product.id, 'quantity': item.quantity}), 201
 
 
+@api_bp.route('/client/carts/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
+def update_cart_item(cart_id, item_id):
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
+    if not cart or cart.status not in OPEN_CART_STATUSES:
+        return jsonify({'error': 'Cart not found or not open'}), 404
+
+    item = CartItem.query.filter_by(id=item_id, cart_id=cart.id).first()
+    if not item:
+        return jsonify({'error': 'Cart item not found'}), 404
+
+    data = request.get_json() or {}
+    try:
+        quantity = int(data.get('quantity', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'positive quantity is required'}), 400
+
+    if quantity < 1:
+        return jsonify({'error': 'positive quantity is required'}), 400
+
+    stock_quantity = item.product.stock.quantity if item.product and item.product.stock else 0
+    if quantity > stock_quantity:
+        return jsonify({
+            'error': 'Requested quantity exceeds available stock',
+            'stock': stock_quantity,
+            'requested_quantity': quantity
+        }), 400
+
+    item.quantity = quantity
+    db.session.commit()
+    return jsonify({'id': item.id, 'product_id': item.product_id, 'quantity': item.quantity})
+
+
+@api_bp.route('/client/carts/<int:cart_id>/items/<int:item_id>', methods=['DELETE'])
+def delete_cart_item(cart_id, item_id):
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
+    if not cart or cart.status not in OPEN_CART_STATUSES:
+        return jsonify({'error': 'Cart not found or not open'}), 404
+
+    item = CartItem.query.filter_by(id=item_id, cart_id=cart.id).first()
+    if not item:
+        return jsonify({'error': 'Cart item not found'}), 404
+
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'message': 'Cart item removed'})
+
+
 @api_bp.route('/client/carts/<int:cart_id>/checkout', methods=['POST'])
 def checkout_cart(cart_id):
     client, error, status = client_required()
@@ -430,14 +544,24 @@ def checkout_cart(cart_id):
         return error, status
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
-    if not cart or cart.status != 'active':
-        return jsonify({'error': 'Cart not found or not active'}), 404
+    if not cart or cart.status not in OPEN_CART_STATUSES:
+        return jsonify({'error': 'Cart not found or not open'}), 404
 
     if not cart.items:
         return jsonify({'error': 'Cart is empty'}), 400
 
+    for item in cart.items:
+        stock_quantity = item.product.stock.quantity if item.product and item.product.stock else 0
+        if item.quantity > stock_quantity:
+            return jsonify({
+                'error': f'Insufficient stock for {item.product.name if item.product else "product"}',
+                'product_id': item.product_id,
+                'stock': stock_quantity,
+                'requested_quantity': item.quantity
+            }), 400
+
     total = 0
-    order = Order(client=client, cart=cart, status='pending', total=0)
+    order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0)
     db.session.add(order)
 
     for item in cart.items:
@@ -448,7 +572,7 @@ def checkout_cart(cart_id):
         if item.product.stock:
             item.product.stock.quantity = max(item.product.stock.quantity - item.quantity, 0)
 
-    cart.status = 'checked_out'
+    cart.status = CartStatus.CLOSED.value
     order.total = total
     db.session.commit()
 
@@ -748,7 +872,7 @@ def admin_clients_summary():
     total_quantity = 0
     total_product_lines = 0
 
-    orders = Order.query.all()
+    orders = Order.query.order_by(Order.created_at.desc(), Order.id.desc()).all()
     for order in orders:
         total_orders += 1
         if order.items:
@@ -1138,3 +1262,42 @@ def admin_get_order(order_id):
             'subtotal': float(item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)) * (item.quantity or 0)
         } for item in order.items]
     })
+
+
+@api_bp.route('/admin/orders/<int:order_id>/status', methods=['PATCH'])
+def admin_update_order_status(order_id):
+    user, error, status = admin_required()
+    if error:
+        return error, status
+
+    order = Order.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    data = request.get_json() or {}
+    requested_status = data.get('status')
+    action = data.get('action')
+    action_status_map = {
+        'approve': OrderStatus.APPROVED.value,
+        'approved': OrderStatus.APPROVED.value,
+        'finish': OrderStatus.FINISHED.value,
+        'finished': OrderStatus.FINISHED.value,
+        'picked_up': OrderStatus.FINISHED.value,
+    }
+    new_status = action_status_map.get(action, requested_status)
+    allowed_statuses = {status.value for status in OrderStatus}
+    if new_status not in allowed_statuses:
+        return jsonify({'error': 'Invalid order status'}), 400
+
+    current_status = normalize_order_status(order.status)
+    allowed_transitions = {
+        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value},
+        OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value},
+        OrderStatus.FINISHED.value: set(),
+    }
+    if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
+        return jsonify({'error': 'Invalid status transition'}), 400
+
+    order.status = new_status
+    db.session.commit()
+    return jsonify({'id': order.id, 'status': order.status})

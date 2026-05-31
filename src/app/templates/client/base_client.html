@@ -1,0 +1,33 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Área do Cliente{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='client.css') }}" />
+{% endblock %}
+
+{% block sidebar %}
+  {% include "client/components/sidebar.html" %}
+{% endblock %}
+
+{% block header_actions %}
+  <div class="d-flex align-items-center gap-2">
+    <button id="clientCartButton" class="btn btn-outline-primary" type="button">
+      <i class="bi bi-cart3 me-1"></i> Carrinho
+      <span id="clientCartCount" class="badge text-bg-primary ms-1">0</span>
+    </button>
+    <button id="clientLogoutButton" class="btn btn-outline-secondary">Sair</button>
+  </div>
+{% endblock %}
+
+{% block page_modals %}
+  {% include "client/components/cart_modal.html" %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='client.js') }}"></script>
+  <script>
+    document.getElementById('clientLogoutButton')?.addEventListener('click', clientLogout);
+  </script>
+{% endblock %}

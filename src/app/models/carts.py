@@ -1,12 +1,13 @@
 from app.models import db
 from datetime import datetime
+from app.models.status_enums import CartStatus
 
 class Cart(db.Model):
     __tablename__ = 'carts'
 
     id = db.Column(db.Integer, primary_key=True)
     client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    status = db.Column(db.String(50), nullable=False, default='active')
+    status = db.Column(db.String(50), nullable=False, default=CartStatus.OPEN.value)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

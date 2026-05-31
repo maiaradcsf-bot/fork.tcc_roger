@@ -1,0 +1,8 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Perfis - Configurações{% endblock %}
+{% block heading %}Perfis{% endblock %}
+{% block description %}Administre perfis de usuário como conjuntos de permissões reutilizáveis.{% endblock %}
+{% block content %}
+  {% include "admin/modules/settings/profiles/components/profiles_table.html" %}
+  {% include "admin/modules/settings/profiles/components/profile_modal.html" %}
+{% endblock %}

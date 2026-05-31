@@ -1,0 +1,33 @@
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalLabel">Nova Categoria</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form id="categoryForm">
+        <div class="modal-body">
+          <input type="hidden" id="categoryId" />
+          <div class="mb-3">
+            <label for="categoryName" class="form-label">Nome</label>
+            <input type="text" id="categoryName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="categoryDescription" class="form-label">Descrição</label>
+            <textarea id="categoryDescription" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="categoryParent" class="form-label">Categoria pai</label>
+            <select id="categoryParent" class="form-select">
+              <option value="">Nenhuma</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar categoria</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

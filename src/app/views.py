@@ -17,51 +17,52 @@ def login():
 @views_bp.route("/dashboard")
 @views_bp.route("/admin")
 def dashboard():
-    return render_template("dashboard.html", active_page='dashboard')
+    return render_template("admin/modules/dashboard/index.html", active_page='dashboard')
 
 @views_bp.route("/admin/orders")
 def orders():
-    return render_template("orders.html", active_page='orders')
+    return render_template("admin/modules/orders/index.html", active_page='orders')
 
 @views_bp.route("/admin/categories")
 def categories():
-    return render_template("categories.html", active_page='categories')
+    return render_template("admin/modules/categories/index.html", active_page='categories')
 
 @views_bp.route("/admin/products")
 def products():
-    return render_template("products.html", active_page='products')
+    return render_template("admin/modules/products/index.html", active_page='products')
 
 @views_bp.route("/admin/clients")
 def clients():
-    return render_template("clients.html", active_page='clients')
+    return render_template("admin/modules/clients/index.html", active_page='clients')
 
 @views_bp.route("/admin/settings")
 def settings():
-    return render_template("settings.html", active_page='settings')
+    return render_template("admin/modules/settings/index.html", active_page='settings')
 
 @views_bp.route("/admin/settings/users")
 def settings_users():
-    return render_template("settings/users.html", active_page='settings')
+    return render_template("admin/modules/settings/users/index.html", active_page='settings')
 
 @views_bp.route("/admin/settings/permissions")
 def settings_permissions():
-    return render_template("settings/permissions.html", active_page='settings')
+    return render_template("admin/modules/settings/permissions/index.html", active_page='settings')
 
 @views_bp.route("/admin/settings/profiles")
 def settings_profiles():
-    return render_template("settings/profiles.html", active_page='settings')
+    return render_template("admin/modules/settings/profiles/index.html", active_page='settings')
 
 
+@views_bp.route('/client')
 @views_bp.route('/client/dashboard')
 def client_dashboard():
-    return render_template('client_dashboard.html', active_page='client_dashboard')
+    return render_template('client/modules/dashboard/index.html', active_page='client_dashboard')
 
 
 @views_bp.route('/client/products')
 def client_products():
-    return render_template('client_products.html', active_page='client_products')
+    return render_template('client/modules/products/index.html', active_page='client_products')
 
 
 @views_bp.route('/client/meus-pedidos')
 def client_meus_pedidos():
-    return render_template('meus-pedidos.html', active_page='client_orders')
+    return render_template('client/modules/orders/index.html', active_page='client_orders')

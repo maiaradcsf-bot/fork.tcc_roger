@@ -1,0 +1,8 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Usuários - Configurações{% endblock %}
+{% block heading %}Usuários{% endblock %}
+{% block description %}Crie, edite e gerencie usuários administrativos de forma separada.{% endblock %}
+{% block content %}
+  {% include "admin/modules/settings/users/components/users_table.html" %}
+  {% include "admin/modules/settings/users/components/user_modal.html" %}
+{% endblock %}

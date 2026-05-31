@@ -1,0 +1,8 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Solicitações dos Clientes - Almoxarifado{% endblock %}
+{% block heading %}Solicitações dos Clientes{% endblock %}
+{% block description %}Acompanhe e gerencie os pedidos de clientes através da API administrativa.{% endblock %}
+{% block content %}
+  {% include "admin/modules/orders/components/orders_table.html" %}
+  {% include "admin/modules/orders/components/order_detail_modal.html" %}
+{% endblock %}

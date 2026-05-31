@@ -1,0 +1,9 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Clientes - Almoxarifado{% endblock %}
+{% block heading %}Clientes{% endblock %}
+{% block description %}Gerencie os clientes cadastrados no sistema e visualize todos os dados e solicitações.{% endblock %}
+{% block content %}
+  {% include "admin/modules/clients/components/clients_table.html" %}
+  {% include "admin/modules/clients/components/client_detail_modal.html" %}
+  {% include "admin/modules/clients/components/client_status_modal.html" %}
+{% endblock %}

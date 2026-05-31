@@ -1,0 +1,37 @@
+<div class="modal fade" id="clientProductDetailModal" tabindex="-1" aria-labelledby="clientProductDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clientProductDetailModalLabel">Detalhes do Produto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-4">
+          <div class="col-12 col-md-4">
+            <div id="clientProductDetailImage" class="bg-light rounded-3 d-flex align-items-center justify-content-center overflow-hidden" style="min-height: 180px;">
+              <span class="text-muted">Sem imagem</span>
+            </div>
+          </div>
+          <div class="col-12 col-md-8">
+            <dl class="row mb-0">
+              <dt class="col-sm-4 text-muted">Produto</dt>
+              <dd class="col-sm-8" id="clientProductDetailName">--</dd>
+              <dt class="col-sm-4 text-muted">Descrição</dt>
+              <dd class="col-sm-8" id="clientProductDetailDescription">--</dd>
+              <dt class="col-sm-4 text-muted">Preço</dt>
+              <dd class="col-sm-8" id="clientProductDetailPrice">--</dd>
+              <dt class="col-sm-4 text-muted">Estoque</dt>
+              <dd class="col-sm-8" id="clientProductDetailStock">--</dd>
+              <dt class="col-sm-4 text-muted">Categorias</dt>
+              <dd class="col-sm-8" id="clientProductDetailCategories">--</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-primary" id="clientProductDetailAddButton">Adicionar requisição</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,12 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Dashboard Admin - Almoxarifado{% endblock %}
+{% block heading %}Dashboard Administrativo{% endblock %}
+{% block description %}Resumo dos módulos com métricas rápidas e atalhos para navegação.{% endblock %}
+{% block content %}
+  {% include "admin/modules/dashboard/components/summary_cards.html" %}
+
+  <div class="row g-3">
+    {% include "admin/modules/dashboard/components/quick_summary.html" %}
+    {% include "admin/modules/dashboard/components/next_steps.html" %}
+  </div>
+{% endblock %}

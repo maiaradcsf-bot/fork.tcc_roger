@@ -1,0 +1,9 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Produtos e Estoque - Almoxarifado{% endblock %}
+{% block heading %}Produtos e Estoque{% endblock %}
+{% block description %}Gerencie produtos cadastrados e acompanhe as movimentações de estoque.{% endblock %}
+{% block content %}
+  {% include "admin/modules/products/components/products_table.html" %}
+  {% include "admin/modules/products/components/product_modal.html" %}
+  {% include "admin/modules/products/components/stock_move_modal.html" %}
+{% endblock %}

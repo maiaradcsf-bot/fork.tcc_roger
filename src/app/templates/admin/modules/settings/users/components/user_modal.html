@@ -1,0 +1,38 @@
+<div class="modal fade" id="settingsUserModal" tabindex="-1" aria-labelledby="settingsUserModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="settingsUserModalLabel">Novo Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form id="settingsUserForm">
+        <input type="hidden" id="settingsUserId" />
+        <div class="modal-body">
+          <div class="row gy-3">
+            <div class="col-12 col-md-6">
+              <label for="settingsUserUsername" class="form-label">Usuário</label>
+              <input type="text" id="settingsUserUsername" class="form-control" required />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="settingsUserEmail" class="form-label">E-mail</label>
+              <input type="email" id="settingsUserEmail" class="form-control" required />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="settingsUserPassword" class="form-label">Senha</label>
+              <input type="password" id="settingsUserPassword" class="form-control" />
+              <div class="form-text">Preencha somente ao criar ou alterar a senha.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="settingsUserRulesSelect" class="form-label">Perfis</label>
+              <select id="settingsUserRulesSelect" class="form-select" multiple></select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar usuário</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
