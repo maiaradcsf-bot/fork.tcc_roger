@@ -38,6 +38,8 @@ def normalize_order_status(status):
         return OrderStatus.PENDING.value
     if normalized in {'aprovado'}:
         return OrderStatus.APPROVED.value
+    if normalized in {'rejected', 'rejeitado', 'rejeitada'}:
+        return OrderStatus.REJECTED.value
     if normalized in {'completed', 'concluido', 'concluído', 'retirado', 'picked_up', 'withdrawn', 'checked_out'}:
         return OrderStatus.FINISHED.value
     return normalized
@@ -364,7 +366,8 @@ def client_create_order():
             total += float(unit_price) * qty
 
             if product.stock:
-                product.stock.quantity = max(product.stock.quantity - qty, 0)
+                # Não reduzir estoque aqui — a baixa deve ocorrer quando o admin confirmar retirada
+                pass
 
         order.total = total
         db.session.commit()
@@ -568,9 +571,7 @@ def checkout_cart(cart_id):
         order_item = OrderItem(order=order, product=item.product, quantity=item.quantity, unit_price=item.product.price)
         db.session.add(order_item)
         total += float(item.product.price or 0) * item.quantity
-
-        if item.product.stock:
-            item.product.stock.quantity = max(item.product.stock.quantity - item.quantity, 0)
+        # Não reduzir estoque agora; a baixa acontecerá quando o admin confirmar retirada
 
     cart.status = CartStatus.CLOSED.value
     order.total = total
@@ -1280,6 +1281,8 @@ def admin_update_order_status(order_id):
     action_status_map = {
         'approve': OrderStatus.APPROVED.value,
         'approved': OrderStatus.APPROVED.value,
+        'reject': OrderStatus.REJECTED.value,
+        'rejected': OrderStatus.REJECTED.value,
         'finish': OrderStatus.FINISHED.value,
         'finished': OrderStatus.FINISHED.value,
         'picked_up': OrderStatus.FINISHED.value,
@@ -1291,9 +1294,10 @@ def admin_update_order_status(order_id):
 
     current_status = normalize_order_status(order.status)
     allowed_transitions = {
-        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value},
+        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value, OrderStatus.REJECTED.value},
         OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value},
         OrderStatus.FINISHED.value: set(),
+        OrderStatus.REJECTED.value: set(),
     }
     if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
         return jsonify({'error': 'Invalid status transition'}), 400

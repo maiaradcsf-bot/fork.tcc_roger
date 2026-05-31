@@ -9,4 +9,5 @@ class CartStatus(str, Enum):
 class OrderStatus(str, Enum):
     PENDING = 'pending'
     APPROVED = 'approved'
+    REJECTED = 'rejected'
     FINISHED = 'finished'

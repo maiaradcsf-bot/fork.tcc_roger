@@ -122,6 +122,9 @@ function createStatusBadge(status) {
   if (['approved', 'aprovado'].includes(normalized)) {
     return '<span class="badge bg-info text-dark status-badge">Aguardando retirada</span>';
   }
+  if (['rejected', 'rejeitado', 'rejeitada'].includes(normalized)) {
+    return '<span class="badge bg-danger status-badge">Rejeitado</span>';
+  }
   if (['finished', 'completed', 'concluido', 'concluído', 'retirado'].includes(normalized)) {
     return '<span class="badge bg-primary status-badge">Retirado</span>';
   }
@@ -222,6 +225,7 @@ async function loadOrders(button = null) {
         const actionButtons = [];
         if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
           actionButtons.push(`<button type="button" class="btn btn-success" onclick="handleAdminOrderAction(${order.id}, 'approve', this)">Aprovar</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-danger" onclick="handleAdminOrderAction(${order.id}, 'reject', this)">Rejeitar</button>`);
         }
         if (['approved', 'aprovado'].includes(normalizedStatus)) {
           actionButtons.push(`<button type="button" class="btn btn-primary" onclick="handleAdminOrderAction(${order.id}, 'finish', this)">Retirado</button>`);
