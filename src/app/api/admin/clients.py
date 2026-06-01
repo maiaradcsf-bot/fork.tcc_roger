@@ -29,11 +29,11 @@ def admin_update_client_status(client_id):
 
     client = Client.query.get(client_id)
     if not client:
-        return jsonify({'error': 'Client not found'}), 404
+        return jsonify({'error': 'Cliente não encontrado'}), 404
 
     data = request.get_json() or {}
     if 'active' not in data:
-        return jsonify({'error': 'active status is required'}), 400
+        return jsonify({'error': 'status ativo é obrigatório'}), 400
 
     active_value = data.get('active')
     if isinstance(active_value, str):
@@ -49,7 +49,7 @@ def admin_update_client_status(client_id):
     return jsonify({
         'id': client.id,
         'active': client.active,
-        'message': 'Client status updated successfully'
+        'message': 'Status do cliente atualizado com sucesso'
     })
 
 

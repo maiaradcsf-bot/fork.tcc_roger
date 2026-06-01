@@ -29,15 +29,15 @@ def admin_create_stock():
     quantity = data.get('quantity', 0)
     
     if not product_id:
-        return jsonify({'error': 'product_id is required'}), 400
+        return jsonify({'error': 'product_id é obrigatório'}), 400
     
     product = get_product_by_id(product_id)
     if not product:
-        return jsonify({'error': 'Product not found'}), 404
+        return jsonify({'error': 'Produto não encontrado'}), 404
     
     existing_stock = Stock.query.filter_by(product_id=product_id).first()
     if existing_stock:
-        return jsonify({'error': 'Stock already exists for this product'}), 400
+        return jsonify({'error': 'Estoque já existe para este produto'}), 400
     
     stock = Stock(product_id=product_id, quantity=quantity)
     db.session.add(stock)

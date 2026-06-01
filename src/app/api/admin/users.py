@@ -31,9 +31,9 @@ def admin_create_user():
     email = data.get('email')
     password = data.get('password')
     if not username or not email or not password:
-        return jsonify({'error': 'username, email and password are required'}), 400
+        return jsonify({'error': 'nome de usuário, email e senha são obrigatórios'}), 400
     if User.query.filter((User.username == username) | (User.email == email)).first():
-        return jsonify({'error': 'Username or email already in use'}), 409
+        return jsonify({'error': 'Nome de usuário ou email já está em uso'}), 409
     user_obj = User(username=username, email=email)
     user_obj.set_password(password)
     rule_ids = data.get('rule_ids') or []
@@ -52,13 +52,13 @@ def admin_update_user(user_id):
         return error, status
     user_obj = User.query.get(user_id)
     if not user_obj:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': 'Usuário não encontrado'}), 404
     data = request.get_json() or {}
     new_username = data.get('username', user_obj.username)
     new_email = data.get('email', user_obj.email)
     if (new_username != user_obj.username and User.query.filter(User.username == new_username).filter(User.id != user_id).first()) or (
         new_email != user_obj.email and User.query.filter(User.email == new_email).filter(User.id != user_id).first()):
-        return jsonify({'error': 'Username or email already in use'}), 409
+        return jsonify({'error': 'Nome de usuário ou email já está em uso'}), 409
     user_obj.username = new_username
     user_obj.email = new_email
     if 'password' in data and data['password']:
@@ -67,7 +67,7 @@ def admin_update_user(user_id):
         rule_ids = data.get('rule_ids') or []
         user_obj.rules = Rule.query.filter(Rule.id.in_(rule_ids)).all() if rule_ids else []
     db.session.commit()
-    return jsonify({'message': 'User updated'})
+    return jsonify({'message': 'Usuário atualizado'})
 
 
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
@@ -77,7 +77,7 @@ def admin_delete_user(user_id):
         return error, status
     user_obj = User.query.get(user_id)
     if not user_obj:
-        return jsonify({'error': 'User not found'}), 404
+        return jsonify({'error': 'Usuário não encontrado'}), 404
     db.session.delete(user_obj)
     db.session.commit()
-    return jsonify({'message': 'User deleted'})
+    return jsonify({'message': 'Usuário excluído'})

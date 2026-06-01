@@ -51,7 +51,7 @@ def admin_create_product():
     if category_ids:
         categories = Category.query.filter(Category.id.in_(category_ids)).all()
         if len(categories) != len(set(category_ids)):
-            return jsonify({'error': 'Invalid category IDs provided'}), 400
+            return jsonify({'error': 'IDs de categoria inválidos'}), 400
 
     product = Product(
         name=data.get('name'),
@@ -72,14 +72,14 @@ def admin_upload():
         return error, status
     
     if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
     
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
     
     if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed. Use: png, jpg, jpeg, gif, webp'}), 400
+        return jsonify({'error': 'Tipo de arquivo não permitido. Use: png, jpg, jpeg, gif, webp'}), 400
     
     # Create uploads folder if doesn't exist
     import os
@@ -103,14 +103,14 @@ def admin_update_product(product_id):
         return error, status
     product = get_product_by_id(product_id)
     if not product:
-        return jsonify({'error': 'Product not found'}), 404
+        return jsonify({'error': 'Produto não encontrado'}), 404
 
     data = request.get_json() or {}
     category_ids = data.get('category_ids')
     if category_ids is not None:
         categories = Category.query.filter(Category.id.in_(category_ids)).all() if category_ids else []
         if len(categories) != len(set(category_ids)):
-            return jsonify({'error': 'Invalid category IDs provided'}), 400
+            return jsonify({'error': 'IDs de categoria inválidos'}), 400
         product.categories = categories
 
     product.name = data.get('name', product.name)
@@ -118,7 +118,7 @@ def admin_update_product(product_id):
     product.price = data.get('price', product.price)
     product.photo_path = data.get('photo_path', product.photo_path)
     db.session.commit()
-    return jsonify({'message': 'Product updated'})
+    return jsonify({'message': 'Produto atualizado'})
 
 
 @admin_bp.route('/products/<int:product_id>', methods=['DELETE'])
@@ -128,7 +128,7 @@ def admin_delete_product(product_id):
         return error, status
     product = get_product_by_id(product_id)
     if not product:
-        return jsonify({'error': 'Product not found'}), 404
+        return jsonify({'error': 'Produto não encontrado'}), 404
     product.soft_delete()
     db.session.commit()
-    return jsonify({'message': 'Product deleted'})
+    return jsonify({'message': 'Produto excluído'})

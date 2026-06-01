@@ -54,22 +54,22 @@ def get_auth_token():
 def client_required():
     token = get_auth_token()
     if not token:
-        return None, jsonify({'error': 'Authorization token required'}), 401
+        return None, jsonify({'error': 'Token de autorização é obrigatório'}), 401
     client = Client.query.filter_by(auth_token=token).first()
     if not client:
-        return None, jsonify({'error': 'Invalid client token'}), 401
+        return None, jsonify({'error': 'Token de cliente inválido'}), 401
     if not client.active:
-        return None, jsonify({'error': 'Client account is inactive'}), 403
+        return None, jsonify({'error': 'Conta de cliente está inativa'}), 403
     return client, None, None
 
 
 def admin_required():
     token = get_auth_token()
     if not token:
-        return None, jsonify({'error': 'Authorization token required'}), 401
+        return None, jsonify({'error': 'Token de autorização é obrigatório'}), 401
     user = User.query.filter_by(auth_token=token).first()
     if not user:
-        return None, jsonify({'error': 'Invalid admin token'}), 401
+        return None, jsonify({'error': 'Token de administrador inválido'}), 401
     if not any(getattr(rule, 'name', None) == 'administrator' for rule in getattr(user, 'rules', []) ):
-        return None, jsonify({'error': 'Admin privileges required'}), 403
+        return None, jsonify({'error': 'Privilégios de administrador são necessários'}), 403
     return user, None, None

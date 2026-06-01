@@ -1,6 +1,7 @@
 // Client-side dashboard and ordering script
 let clientProductsCache = [];
 let clientOpenCart = null;
+let clientProfilePhotoURL = '';
 let clientOrdersChartRange = 7;
 const OPEN_CART_STATUSES = ['open'];
 
@@ -104,6 +105,155 @@ async function loadSummary() {
     }
   } catch (err) {
     showAlert('danger', `Falha ao carregar resumo: ${err.message}`);
+  }
+}
+
+function updateClientProfilePhotoPreview(photoUrl) {
+  const preview = document.getElementById('clientProfilePhotoPreview');
+  if (!preview) return;
+  if (photoUrl) {
+    preview.innerHTML = `
+      <img src="${escapeHtml(photoUrl)}" alt="Foto de perfil" class="img-fluid rounded-circle" style="max-width: 150px; max-height: 150px;" />
+    `;
+  } else {
+    preview.innerHTML = '<div class="text-muted">Nenhuma foto cadastrada.</div>';
+  }
+}
+
+async function loadClientProfile() {
+  const token = getClientToken();
+  if (!token) {
+    showAlert('warning', 'Autenticação de cliente não encontrada. Faça cadastro/login.');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/client/profile', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.error || `Erro ${response.status}`);
+    }
+
+    const data = await response.json();
+    const nameField = document.getElementById('clientProfileName');
+    const emailField = document.getElementById('clientProfileEmail');
+    const phoneField = document.getElementById('clientProfilePhone');
+    const passwordField = document.getElementById('clientProfilePassword');
+    const passwordConfirmField = document.getElementById('clientProfilePasswordConfirm');
+
+    if (nameField) nameField.value = data.name || '';
+    if (emailField) emailField.value = data.email || '';
+    if (phoneField) phoneField.value = data.phone || '';
+    clientProfilePhotoURL = data.photo_path || '';
+    if (passwordField) passwordField.value = '';
+    if (passwordConfirmField) passwordConfirmField.value = '';
+    updateClientProfilePhotoPreview(clientProfilePhotoURL);
+  } catch (err) {
+    showAlert('danger', `Falha ao carregar perfil: ${err.message}`);
+  }
+}
+
+async function uploadClientProfilePhoto(file) {
+  const token = getClientToken();
+  if (!token) {
+    showAlert('warning', 'Autenticação de cliente não encontrada. Faça cadastro/login.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch('/api/client/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.error || `Erro ${response.status}`);
+  }
+
+  const data = await response.json();
+  clientProfilePhotoURL = data.url || '';
+  updateClientProfilePhotoPreview(clientProfilePhotoURL);
+  showAlert('success', 'Foto de perfil enviada com sucesso.');
+}
+
+async function handleClientProfilePhotoChange(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showAlert('warning', 'Selecione um arquivo de imagem.');
+    return;
+  }
+
+  const preview = document.getElementById('clientProfilePhotoPreview');
+  if (preview) {
+    preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Pré-visualização" class="img-fluid rounded-circle" style="max-width: 150px; max-height: 150px;" />`;
+  }
+
+  try {
+    await uploadClientProfilePhoto(file);
+  } catch (err) {
+    showAlert('danger', `Falha ao enviar foto: ${err.message}`);
+  }
+}
+
+async function saveClientProfile(event) {
+  event.preventDefault();
+  const token = getClientToken();
+  if (!token) {
+    showAlert('warning', 'Autenticação de cliente não encontrada. Faça cadastro/login.');
+    return;
+  }
+
+  const name = document.getElementById('clientProfileName')?.value.trim();
+  const email = document.getElementById('clientProfileEmail')?.value.trim();
+  const phone = document.getElementById('clientProfilePhone')?.value.trim();
+  const password = document.getElementById('clientProfilePassword')?.value || '';
+  const passwordConfirm = document.getElementById('clientProfilePasswordConfirm')?.value || '';
+
+  if (!name || !email) {
+    showAlert('warning', 'Nome e e-mail são obrigatórios.');
+    return;
+  }
+
+  if (password && password !== passwordConfirm) {
+    showAlert('warning', 'As senhas não coincidem.');
+    return;
+  }
+
+  const payload = {
+    name,
+    email,
+    phone,
+    photo_path: clientProfilePhotoURL || undefined
+  };
+  if (password) payload.password = password;
+
+  try {
+    const response = await fetch('/api/client/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.error || `Erro ${response.status}`);
+    }
+
+    const data = await response.json();
+    showAlert('success', data.message || 'Perfil atualizado com sucesso.');
+    document.getElementById('clientProfilePassword').value = '';
+    document.getElementById('clientProfilePasswordConfirm').value = '';
+  } catch (err) {
+    showAlert('danger', `Falha ao salvar perfil: ${err.message}`);
   }
 }
 
@@ -680,6 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.client-orders-range-button').forEach((button) => {
     button.addEventListener('click', () => setClientOrdersChartRange(Number(button.dataset.rangeDays) || 7));
   });
+
+  const profileForm = document.getElementById('clientProfileForm');
+  if (profileForm) {
+    profileForm.addEventListener('submit', saveClientProfile);
+    document.getElementById('clientProfilePhoto')?.addEventListener('change', handleClientProfilePhotoChange);
+    loadClientProfile();
+  }
   window.addEventListener('resize', () => {
     if (document.getElementById('clientOrdersChart')) {
       // Buscar dados atualizados da API ao redimensionar, evitando cache em memória

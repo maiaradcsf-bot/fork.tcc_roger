@@ -10,6 +10,7 @@ class Client(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     phone = db.Column(db.String(50), nullable=True)
+    photo_path = db.Column(db.String(255), nullable=True)
     auth_token = db.Column(db.String(255), unique=True, nullable=True)
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

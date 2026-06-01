@@ -1,6 +1,10 @@
+import os
+import secrets
+from werkzeug.utils import secure_filename
+
 from app.api.client import client_bp
 from flask import jsonify, request
-from app.api.utils import client_required, get_active_products, normalize_order_status
+from app.api.utils import client_required, get_active_products, normalize_order_status, UPLOAD_FOLDER, allowed_file
 from app.models.products import Product
 from app.models.status_enums import OrderStatus
 
@@ -15,6 +19,7 @@ def client_profile():
         'name': client.name,
         'email': client.email,
         'phone': client.phone,
+        'photo_path': client.photo_path,
         'addresses': [{
             'id': address.id,
             'street': address.street,
@@ -27,6 +32,31 @@ def client_profile():
     })
 
 
+@client_bp.route('/upload', methods=['POST'])
+def client_upload():
+    client, error, status = client_required()
+    if error:
+        return error, status
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Tipo de arquivo não permitido. Use: png, jpg, jpeg, gif, webp'}), 400
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    filename = secure_filename(file.filename)
+    filename = f"{secrets.token_hex(8)}_{filename}"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    return jsonify({'url': f'/static/uploads/{filename}'}), 201
+
+
 @client_bp.route('/profile', methods=['PUT'])
 def update_client_profile():
     client, error, status = client_required()
@@ -37,11 +67,13 @@ def update_client_profile():
     client.name = data.get('name', client.name)
     client.email = data.get('email', client.email)
     client.phone = data.get('phone', client.phone)
-    if 'password' in data:
-        client.set_password(data['password'])
+    client.photo_path = data.get('photo_path', client.photo_path)
+    password = data.get('password')
+    if password:
+        client.set_password(password)
     from app.models import db
     db.session.commit()
-    return jsonify({'message': 'Profile updated successfully'})
+    return jsonify({'message': 'Perfil atualizado com sucesso'})
 
 
 @client_bp.route('/summary', methods=['GET'])

@@ -71,3 +71,7 @@ def client_products():
 @views_bp.route('/client/meus-pedidos')
 def client_meus_pedidos():
     return render_template('client/modules/orders/index.html', active_page='client_orders')
+
+@views_bp.route('/client/perfil')
+def client_profile():
+    return render_template('client/modules/profile/index.html', active_page='client_profile')

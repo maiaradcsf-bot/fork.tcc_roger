@@ -62,7 +62,7 @@ def client_get_order(order_id):
 
     order = Order.query.get(order_id)
     if not order or order.client_id != client.id:
-        return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Pedido não encontrado'}), 404
 
     total_value = None
     try:
@@ -104,20 +104,20 @@ def client_update_order_status(order_id):
 
     order = Order.query.get(order_id)
     if not order or order.client_id != client.id:
-        return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Pedido não encontrado'}), 404
 
     data = request.get_json() or {}
     action = data.get('action')
     if not action:
-        return jsonify({'error': 'action is required'}), 400
+        return jsonify({'error': 'ação é obrigatória'}), 400
 
     action = action.lower()
     if action not in {'cancel', 'cancelled', 'canceled'}:
-        return jsonify({'error': 'Unsupported action'}), 400
+        return jsonify({'error': 'Ação não suportada'}), 400
 
     current_status = normalize_order_status(order.status)
     if current_status != OrderStatus.PENDING.value:
-        return jsonify({'error': 'Order can only be cancelled when pending'}), 400
+        return jsonify({'error': 'Pedido só pode ser cancelado quando estiver pendente'}), 400
 
     new_status = OrderStatus.CANCELLED.value
     order.status = new_status
@@ -134,7 +134,7 @@ def client_create_order():
     data = request.get_json() or {}
     items = data.get('items')
     if not items or not isinstance(items, list):
-        return jsonify({'error': 'items list required'}), 400
+        return jsonify({'error': 'lista de itens é obrigatória'}), 400
 
     total = 0.0
     cart = Cart(client=client, status=CartStatus.CLOSED.value)
@@ -151,18 +151,18 @@ def client_create_order():
             qty = int(it.get('quantity', 0) or 0)
             if not product_id or qty <= 0:
                 db.session.rollback()
-                return jsonify({'error': 'Each item requires product_id and positive quantity'}), 400
+                return jsonify({'error': 'Cada item requer product_id e quantidade positiva'}), 400
 
             product = get_product_by_id(product_id)
             if not product:
                 db.session.rollback()
-                return jsonify({'error': f'Product {product_id} not found'}), 404
+                return jsonify({'error': f'Produto {product_id} não encontrado'}), 404
 
             stock_quantity = product.stock.quantity if product.stock else 0
             if qty > stock_quantity:
                 db.session.rollback()
                 return jsonify({
-                    'error': f'Requested quantity exceeds available stock for product {product_id}',
+                    'error': f'Quantidade solicitada excede o estoque disponível for product {product_id}',
                     'product_id': product_id,
                     'stock': stock_quantity,
                     'requested_quantity': qty
@@ -185,6 +185,6 @@ def client_create_order():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Failed to create order', 'details': str(e)}), 500
+        return jsonify({'error': 'Falha ao criar pedido', 'details': str(e)}), 500
 
     return jsonify({'order_id': order.id, 'cart_id': cart.id, 'total': float(order.total), 'status': order.status}), 201

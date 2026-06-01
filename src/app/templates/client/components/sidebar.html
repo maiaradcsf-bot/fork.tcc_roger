@@ -13,5 +13,6 @@
     <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'client_dashboard' %}active{% endif %}" href="{{ url_for('views.client_dashboard') }}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
     <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'client_products' %}active{% endif %}" href="{{ url_for('views.client_products') }}"><i class="bi bi-box-seam me-2"></i> Produtos</a>
     <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'client_orders' %}active{% endif %}" href="{{ url_for('views.client_meus_pedidos') }}"><i class="bi bi-card-checklist me-2"></i> Solicitações</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'client_profile' %}active{% endif %}" href="{{ url_for('views.client_profile') }}"><i class="bi bi-person-circle me-2"></i> Perfil</a>
   </div>
 </aside>

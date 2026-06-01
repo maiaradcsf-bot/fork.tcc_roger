@@ -55,7 +55,7 @@ def admin_get_order(order_id):
 
     order = Order.query.get(order_id)
     if not order:
-        return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Pedido não encontrado'}), 404
     total_value = None
     try:
         total_value = float(order.total) if order.total is not None else None
@@ -96,7 +96,7 @@ def admin_update_order_status(order_id):
 
     order = Order.query.get(order_id)
     if not order:
-        return jsonify({'error': 'Order not found'}), 404
+        return jsonify({'error': 'Pedido não encontrado'}), 404
 
     data = request.get_json() or {}
     requested_status = data.get('status')
@@ -116,7 +116,7 @@ def admin_update_order_status(order_id):
     new_status = action_status_map.get(action, requested_status)
     allowed_statuses = {status.value for status in OrderStatus}
     if new_status not in allowed_statuses:
-        return jsonify({'error': 'Invalid order status'}), 400
+        return jsonify({'error': 'Status de pedido inválido'}), 400
 
     current_status = normalize_order_status(order.status)
     allowed_transitions = {
@@ -127,7 +127,7 @@ def admin_update_order_status(order_id):
         OrderStatus.CANCELLED.value: set(),
     }
     if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
-        return jsonify({'error': 'Invalid status transition'}), 400
+        return jsonify({'error': 'Transição de status inválida'}), 400
 
     # If transition to 'finished', apply stock changes and create StockMoves
     if new_status == OrderStatus.FINISHED.value and new_status != current_status:
@@ -159,7 +159,7 @@ def admin_update_order_status(order_id):
                 db.session.add(move)
         except Exception as e:
             db.session.rollback()
-            return jsonify({'error': 'Failed to apply stock changes', 'details': str(e)}), 500
+            return jsonify({'error': 'Falha ao aplicar alterações de estoque', 'details': str(e)}), 500
 
     order.status = new_status
     db.session.commit()

@@ -29,10 +29,10 @@ def admin_create_category():
     data = request.get_json() or {}
     name = data.get('name')
     if not name:
-        return jsonify({'error': 'name is required'}), 400
+        return jsonify({'error': 'nome é obrigatório'}), 400
     parent_id = data.get('parent_id')
     if parent_id is not None and not Category.query.get(parent_id):
-        return jsonify({'error': 'Parent category not found'}), 400
+        return jsonify({'error': 'Categoria pai não encontrada'}), 400
     category = Category(
         name=name,
         description=data.get('description'),
@@ -50,18 +50,18 @@ def admin_update_category(category_id):
         return error, status
     category = Category.query.get(category_id)
     if not category:
-        return jsonify({'error': 'Category not found'}), 404
+        return jsonify({'error': 'Categoria não encontrada'}), 404
     data = request.get_json() or {}
     parent_id = data.get('parent_id', category.parent_id)
     if parent_id is not None and parent_id != category.id and not Category.query.get(parent_id):
-        return jsonify({'error': 'Parent category not found'}), 400
+        return jsonify({'error': 'Categoria pai não encontrada'}), 400
     if parent_id == category.id:
-        return jsonify({'error': 'Category cannot be its own parent'}), 400
+        return jsonify({'error': 'Categoria não pode ser sua própria categoria pai'}), 400
     category.name = data.get('name', category.name)
     category.description = data.get('description', category.description)
     category.parent_id = parent_id
     db.session.commit()
-    return jsonify({'message': 'Category updated'})
+    return jsonify({'message': 'Categoria atualizada'})
 
 
 @admin_bp.route('/categories/<int:category_id>', methods=['DELETE'])
@@ -71,7 +71,7 @@ def admin_delete_category(category_id):
         return error, status
     category = Category.query.get(category_id)
     if not category:
-        return jsonify({'error': 'Category not found'}), 404
+        return jsonify({'error': 'Categoria não encontrada'}), 404
     db.session.delete(category)
     db.session.commit()
-    return jsonify({'message': 'Category deleted'})
+    return jsonify({'message': 'Categoria excluída'})

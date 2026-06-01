@@ -32,7 +32,7 @@ def admin_list_stock_moves():
             end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
             query = query.filter(StockMove.created_at < end_dt)
     except ValueError:
-        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD or ISO format.'}), 400
+        return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD ou ISO.'}), 400
 
     stock_moves = query.order_by(StockMove.created_at.desc()).all()
     return jsonify([{
@@ -58,7 +58,7 @@ def admin_create_stock_move():
     reason = data.get('reason')
     
     if quantity_change is None:
-        return jsonify({'error': 'quantity_change is required'}), 400
+        return jsonify({'error': 'quantity_change é obrigatório'}), 400
     
     # If product_id is provided, find or create stock
     if product_id and not stock_id:
@@ -66,17 +66,17 @@ def admin_create_stock_move():
         if not stock:
             product = get_product_by_id(product_id)
             if not product:
-                return jsonify({'error': 'Product not found'}), 404
+                return jsonify({'error': 'Produto não encontrado'}), 404
             stock = Stock(product_id=product_id, quantity=0)
             db.session.add(stock)
             db.session.commit()
         stock_id = stock.id
     elif not stock_id:
-        return jsonify({'error': 'stock_id or product_id is required'}), 400
+        return jsonify({'error': 'stock_id ou product_id é obrigatório'}), 400
     
     stock = Stock.query.get(stock_id)
     if not stock:
-        return jsonify({'error': 'Stock not found'}), 404
+        return jsonify({'error': 'Estoque não encontrado'}), 404
     
     quantity_change_int = int(quantity_change)
     old_qty = stock.quantity

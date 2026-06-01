@@ -26,9 +26,9 @@ def admin_create_permission():
     data = request.get_json() or {}
     name = data.get('name')
     if not name:
-        return jsonify({'error': 'name is required'}), 400
+        return jsonify({'error': 'nome é obrigatório'}), 400
     if Permission.query.filter_by(name=name).first():
-        return jsonify({'error': 'Permission already exists'}), 409
+        return jsonify({'error': 'Permissão já existe'}), 409
     permission = Permission(name=name, description=data.get('description'))
     db.session.add(permission)
     db.session.commit()
@@ -42,15 +42,15 @@ def admin_update_permission(permission_id):
         return error, status
     permission = Permission.query.get(permission_id)
     if not permission:
-        return jsonify({'error': 'Permission not found'}), 404
+        return jsonify({'error': 'Permissão não encontrada'}), 404
     data = request.get_json() or {}
     name = data.get('name', permission.name)
     if name != permission.name and Permission.query.filter_by(name=name).filter(Permission.id != permission_id).first():
-        return jsonify({'error': 'Permission already exists'}), 409
+        return jsonify({'error': 'Permissão já existe'}), 409
     permission.name = name
     permission.description = data.get('description', permission.description)
     db.session.commit()
-    return jsonify({'message': 'Permission updated'})
+    return jsonify({'message': 'Permissão atualizada'})
 
 
 @admin_bp.route('/permissions/<int:permission_id>', methods=['DELETE'])
@@ -60,7 +60,7 @@ def admin_delete_permission(permission_id):
         return error, status
     permission = Permission.query.get(permission_id)
     if not permission:
-        return jsonify({'error': 'Permission not found'}), 404
+        return jsonify({'error': 'Permissão não encontrada'}), 404
     db.session.delete(permission)
     db.session.commit()
-    return jsonify({'message': 'Permission deleted'})
+    return jsonify({'message': 'Permissão excluída'})

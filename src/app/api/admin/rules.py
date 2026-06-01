@@ -29,9 +29,9 @@ def admin_create_rule():
     data = request.get_json() or {}
     name = data.get('name')
     if not name:
-        return jsonify({'error': 'name is required'}), 400
+        return jsonify({'error': 'nome é obrigatório'}), 400
     if Rule.query.filter_by(name=name).first():
-        return jsonify({'error': 'Rule already exists'}), 409
+        return jsonify({'error': 'Regra já existe'}), 409
     rule = Rule(name=name, description=data.get('description'))
     permission_ids = data.get('permission_ids') or []
     if permission_ids:
@@ -48,18 +48,18 @@ def admin_update_rule(rule_id):
         return error, status
     rule = Rule.query.get(rule_id)
     if not rule:
-        return jsonify({'error': 'Rule not found'}), 404
+        return jsonify({'error': 'Regra não encontrada'}), 404
     data = request.get_json() or {}
     name = data.get('name', rule.name)
     if name != rule.name and Rule.query.filter_by(name=name).filter(Rule.id != rule_id).first():
-        return jsonify({'error': 'Rule already exists'}), 409
+        return jsonify({'error': 'Regra já existe'}), 409
     rule.name = name
     rule.description = data.get('description', rule.description)
     if 'permission_ids' in data:
         permission_ids = data.get('permission_ids') or []
         rule.permissions = Permission.query.filter(Permission.id.in_(permission_ids)).all() if permission_ids else []
     db.session.commit()
-    return jsonify({'message': 'Rule updated'})
+    return jsonify({'message': 'Regra atualizada'})
 
 
 @admin_bp.route('/rules/<int:rule_id>', methods=['DELETE'])
@@ -69,7 +69,7 @@ def admin_delete_rule(rule_id):
         return error, status
     rule = Rule.query.get(rule_id)
     if not rule:
-        return jsonify({'error': 'Rule not found'}), 404
+        return jsonify({'error': 'Regra não encontrada'}), 404
     db.session.delete(rule)
     db.session.commit()
-    return jsonify({'message': 'Rule deleted'})
+    return jsonify({'message': 'Regra excluída'})

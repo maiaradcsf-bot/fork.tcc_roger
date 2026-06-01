@@ -52,27 +52,27 @@ def add_cart_item(cart_id):
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
     if not cart or cart.status not in OPEN_CART_STATUSES:
-        return jsonify({'error': 'Cart not found or not open'}), 404
+        return jsonify({'error': 'Carrinho não encontrado ou não está aberto'}), 404
 
     data = request.get_json() or {}
     product_id = data.get('product_id')
     try:
         quantity = int(data.get('quantity', 1))
     except (TypeError, ValueError):
-        return jsonify({'error': 'product_id and positive quantity are required'}), 400
+        return jsonify({'error': 'product_id e quantidade positiva são obrigatórios'}), 400
     if not product_id or quantity < 1:
-        return jsonify({'error': 'product_id and positive quantity are required'}), 400
+        return jsonify({'error': 'product_id e quantidade positiva são obrigatórios'}), 400
 
     product = get_product_by_id(product_id)
     if not product:
-        return jsonify({'error': 'Product not found'}), 404
+        return jsonify({'error': 'Produto não encontrado'}), 404
 
     stock_quantity = product.stock.quantity if product.stock else 0
     item = CartItem.query.filter_by(cart_id=cart.id, product_id=product.id).first()
     current_quantity = item.quantity if item else 0
     if current_quantity + quantity > stock_quantity:
         return jsonify({
-            'error': 'Requested quantity exceeds available stock',
+            'error': 'Quantidade solicitada excede o estoque disponível',
             'stock': stock_quantity,
             'current_quantity': current_quantity,
             'available_quantity': max(stock_quantity - current_quantity, 0)
@@ -96,25 +96,25 @@ def update_cart_item(cart_id, item_id):
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
     if not cart or cart.status not in OPEN_CART_STATUSES:
-        return jsonify({'error': 'Cart not found or not open'}), 404
+        return jsonify({'error': 'Carrinho não encontrado ou não está aberto'}), 404
 
     item = CartItem.query.filter_by(id=item_id, cart_id=cart.id).first()
     if not item:
-        return jsonify({'error': 'Cart item not found'}), 404
+        return jsonify({'error': 'Item do carrinho não encontrado'}), 404
 
     data = request.get_json() or {}
     try:
         quantity = int(data.get('quantity', 0))
     except (TypeError, ValueError):
-        return jsonify({'error': 'positive quantity is required'}), 400
+        return jsonify({'error': 'quantidade positiva é obrigatória'}), 400
 
     if quantity < 1:
-        return jsonify({'error': 'positive quantity is required'}), 400
+        return jsonify({'error': 'quantidade positiva é obrigatória'}), 400
 
     stock_quantity = item.product.stock.quantity if item.product and item.product.stock else 0
     if quantity > stock_quantity:
         return jsonify({
-            'error': 'Requested quantity exceeds available stock',
+            'error': 'Quantidade solicitada excede o estoque disponível',
             'stock': stock_quantity,
             'requested_quantity': quantity
         }), 400
@@ -132,15 +132,15 @@ def delete_cart_item(cart_id, item_id):
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
     if not cart or cart.status not in OPEN_CART_STATUSES:
-        return jsonify({'error': 'Cart not found or not open'}), 404
+        return jsonify({'error': 'Carrinho não encontrado ou não está aberto'}), 404
 
     item = CartItem.query.filter_by(id=item_id, cart_id=cart.id).first()
     if not item:
-        return jsonify({'error': 'Cart item not found'}), 404
+        return jsonify({'error': 'Item do carrinho não encontrado'}), 404
 
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'message': 'Cart item removed'})
+    return jsonify({'message': 'Item do carrinho removido'})
 
 
 @client_bp.route('/carts/<int:cart_id>/checkout', methods=['POST'])
@@ -151,16 +151,16 @@ def checkout_cart(cart_id):
 
     cart = Cart.query.filter_by(id=cart_id, client_id=client.id).first()
     if not cart or cart.status not in OPEN_CART_STATUSES:
-        return jsonify({'error': 'Cart not found or not open'}), 404
+        return jsonify({'error': 'Carrinho não encontrado ou não está aberto'}), 404
 
     if not cart.items:
-        return jsonify({'error': 'Cart is empty'}), 400
+        return jsonify({'error': 'Carrinho está vazio'}), 400
 
     for item in cart.items:
         stock_quantity = item.product.stock.quantity if item.product and item.product.stock else 0
         if item.quantity > stock_quantity:
             return jsonify({
-                'error': f'Insufficient stock for {item.product.name if item.product else "product"}',
+                'error': f'Estoque insuficiente para {item.product.name if item.product else "product"}',
                 'product_id': item.product_id,
                 'stock': stock_quantity,
                 'requested_quantity': item.quantity
