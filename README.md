@@ -153,6 +153,11 @@ docker compose exec app python seeds/seed_data.py
 
 Isso cria dados de exemplo para produtos, categorias, estoque, clientes, endereços e um usuário administrador.
 
+> Usuário administrador padrão criado pelo seed:
+> - Usuário: `admin`
+> - Email: `admin@almoxarifado.com`
+> - Senha: `dev@123`
+>
 ## 🌐 Acessando a Aplicação
 
 | Serviço | URL | Descrição |

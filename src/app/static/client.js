@@ -794,9 +794,16 @@ window.confirmClientCart = async function() {
   if (!token || !clientOpenCart) return;
 
   try {
+    const reason = document.getElementById('clientCartReason') ? document.getElementById('clientCartReason').value.trim() : '';
+    if (!reason) {
+      showAlert('warning', 'Informe o motivo da solicitação antes de confirmar.');
+      return;
+    }
+
     const response = await fetch(`/api/client/carts/${clientOpenCart.id}/checkout`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason })
     });
     if (!response.ok) {
       const err = await response.json().catch(() => null);

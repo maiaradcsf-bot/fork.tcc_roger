@@ -166,8 +166,11 @@ def checkout_cart(cart_id):
                 'requested_quantity': item.quantity
             }), 400
 
+    data = request.get_json() or {}
+    reason = data.get('reason')
+
     total = 0
-    order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0)
+    order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0, reason=reason)
     db.session.add(order)
     db.session.flush()
 

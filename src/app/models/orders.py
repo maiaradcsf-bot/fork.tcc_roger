@@ -11,6 +11,7 @@ class Order(db.Model):
     status = db.Column(db.String(50), nullable=False, default=OrderStatus.PENDING.value)
     total = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reason = db.Column(db.Text, nullable=True)
 
     client = db.relationship('Client', back_populates='orders')
     cart = db.relationship('Cart', back_populates='order', uselist=False)

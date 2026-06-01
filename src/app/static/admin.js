@@ -250,16 +250,17 @@ async function loadDashboardSummary() {
     if (summaryCategories) summaryCategories.textContent = Array.isArray(categories) ? categories.length : '—';
     if (summaryProducts) summaryProducts.textContent = Array.isArray(products) ? products.length : '—';
     if (summaryClients) summaryClients.textContent = Array.isArray(clients) ? clients.length : '—';
+    const lowStockProducts = Array.isArray(products)
+      ? products.filter((product) => {
+          const stock = Number(product.stock || 0);
+          const minStock = product.min_stock === null || product.min_stock === undefined ? null : Number(product.min_stock);
+          return minStock !== null && Number.isFinite(stock) && Number.isFinite(minStock) && stock <= minStock;
+        })
+      : [];
     if (summaryLowStock) {
-      const lowStockCount = Array.isArray(products)
-        ? products.filter((product) => {
-            const stock = Number(product.stock || 0);
-            const minStock = product.min_stock === null || product.min_stock === undefined ? null : Number(product.min_stock);
-            return minStock !== null && Number.isFinite(stock) && Number.isFinite(minStock) && stock <= minStock;
-          }).length
-        : '—';
-      summaryLowStock.textContent = lowStockCount;
+      summaryLowStock.textContent = Array.isArray(lowStockProducts) ? lowStockProducts.length : '—';
     }
+    renderLowStockList(lowStockProducts);
     if (summaryPendingOrders) {
       const pendingCount = Array.isArray(orders)
         ? orders.filter((order) => ['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes((order.status || '').toString().toLowerCase())).length
@@ -345,6 +346,53 @@ async function loadOrders(button = null) {
   }
 }
 
+function renderLowStockList(items) {
+  const container = document.getElementById('lowStockList');
+  if (!container) return;
+  if (!Array.isArray(items) || items.length === 0) {
+    container.innerHTML = '<div class="text-muted">Nenhum produto próximo do estoque mínimo.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Produto</th>
+            <th>Estoque atual</th>
+            <th>Estoque mínimo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((p) => `
+            <tr>
+              <td class="py-2">${escapeHtml(p.name || p.product || '—')}</td>
+              <td class="py-2">${p.stock ?? '—'}</td>
+              <td class="py-2">${p.min_stock ?? '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function openStockMoveForProduct(productId) {
+  try {
+    const stockItems = await fetchJson('/stock');
+    const matching = Array.isArray(stockItems) ? stockItems.find((s) => Number(s.product_id) === Number(productId)) : null;
+    await loadStockItems();
+    if (matching) {
+      const select = document.getElementById('stockItemSelect');
+      if (select) select.value = matching.id;
+    }
+    openStockMoveModal();
+  } catch (error) {
+    showAlert('danger', `Erro ao abrir movimentação: ${error.message}`);
+  }
+}
+
 function openOrderActionConfirm(orderId, action, button) {
   const modal = document.getElementById('orderActionConfirmModal');
   const message = document.getElementById('orderActionConfirmMessage');
@@ -391,6 +439,9 @@ async function openOrderDetailModal(orderId) {
     const order = await fetchJson(`/orders/${orderId}`);
     clientField.textContent = order.client || order.client_name || '—';
     statusField.innerHTML = createStatusBadge(order.status);
+    // show reason when present
+    const reasonEl = document.getElementById('orderDetailReason');
+    if (reasonEl) reasonEl.textContent = order.reason || '--';
     // Use o total retornado pelo backend quando disponível, caso contrário calcule a partir dos itens
     let displayedTotal = Number(order.total || 0);
     if ((!displayedTotal || displayedTotal === 0) && Array.isArray(order.items) && order.items.length > 0) {

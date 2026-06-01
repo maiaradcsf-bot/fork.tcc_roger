@@ -12,6 +12,7 @@ from app.models.permissions import Permission
 from app.models.categories import Category
 from app.models.products import Product
 from app.models.stock import Stock
+from app.models.stock_moves import StockMove
 
 
 def seed_data():
@@ -210,7 +211,40 @@ def seed_data():
                 if category and category not in product.categories:
                     product.categories.append(category)
 
-            get_or_create(Stock, product_id=product.id, defaults={'quantity': random.randint(10, 99)})
+            stock, created_stock = get_or_create(Stock, product_id=product.id, defaults={'quantity': random.randint(10, 99)})
+
+            # Ajustar alguns produtos para ficarem próximos ou abaixo do estoque mínimo
+            products_with_losses = {
+                'Caneta Esferográfica Azul',
+                'Caderno Universitário 200 Folhas',
+                'Resma de Papel Sulfite A4 500 Folhas',
+                'Kit de Lapiseira 0.5 mm',
+                'Pasta Catálogo com Elástico',
+            }
+            loss_reason = 'Perda - validade vencida'
+
+            if product.name in products_with_losses:
+                if stock.quantity is None:
+                    stock.quantity = 0
+                # Definir quantidade final abaixo ou no mínimo, para enfatizar baixa de estoque
+                target_quantity = max(0, product.min_stock - random.randint(1, 3))
+                if stock.quantity > target_quantity:
+                    quantity_change = target_quantity - stock.quantity
+                    stock.quantity = target_quantity
+                    db.session.add(stock)
+                    existing_loss_move = StockMove.query.filter_by(
+                        stock_id=stock.id,
+                        reason=loss_reason,
+                        move_type='saida',
+                        quantity_change=quantity_change,
+                    ).first()
+                    if not existing_loss_move:
+                        db.session.add(StockMove(
+                            stock_id=stock.id,
+                            quantity_change=quantity_change,
+                            reason=loss_reason,
+                            move_type='saida',
+                        ))
 
         db.session.commit()
         print('Seeds criados com sucesso!')

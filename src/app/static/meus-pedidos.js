@@ -159,6 +159,8 @@ async function openClientOrderDetailModal(orderId) {
     clientField.textContent = order.client || '—';
     statusField.innerHTML = createClientOrderStatusBadge(order.status);
     totalField.textContent = formatPrice(order.total || 0);
+    const reasonEl = document.getElementById('clientOrderDetailReason');
+    if (reasonEl) reasonEl.textContent = order.reason || '--';
     createdAtField.textContent = formatOrderDate(order.created_at || order.createdAt || '');
 
     if (!Array.isArray(order.items) || order.items.length === 0) {

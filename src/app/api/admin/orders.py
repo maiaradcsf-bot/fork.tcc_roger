@@ -38,6 +38,7 @@ def admin_list_orders():
             'client': order.client.name if order.client else None,
             'status': order.status,
             'total': float(total_value),
+            'reason': order.reason,
             'product_summary': ', '.join([item.product.name for item in order.items if item.product]) or None,
             'quantity_total': sum([item.quantity for item in order.items]) if order.items else 0,
             'cart_id': order.cart_id,
@@ -76,6 +77,7 @@ def admin_get_order(order_id):
         'client': order.client.name if order.client else None,
         'status': order.status,
         'total': float(total_value),
+        'reason': order.reason,
         'created_at': order.created_at.isoformat() if order.created_at else None,
         'items': [{
             'product': item.product.name if item.product else None,
