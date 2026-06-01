@@ -3,8 +3,8 @@
 {% block title %}Área do Cliente{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='client.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/client/client.css') }}" />
 {% endblock %}
 
 {% block sidebar %}
@@ -26,7 +26,7 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='client.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/client/client.js') }}"></script>
   <script>
     document.getElementById('clientLogoutButton')?.addEventListener('click', clientLogout);
   </script>
