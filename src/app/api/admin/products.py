@@ -1,0 +1,103 @@
+import os
+import secrets
+from app.api.admin import admin_bp
+from flask import jsonify, request
+from app.api.utils import admin_required, get_active_products, get_product_by_id, UPLOAD_FOLDER, allowed_file
+from werkzeug.utils import secure_filename
+from app.models.products import Product
+from app.models import db
+
+
+@admin_bp.route('/products', methods=['GET'])
+def admin_list_products():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    products = get_active_products()
+    return jsonify([{
+        'id': product.id,
+        'name': product.name,
+        'description': product.description,
+        'price': float(product.price) if product.price else 0.0,
+        'photo_path': product.photo_path,
+        'stock': product.stock.quantity if product.stock else 0
+    } for product in products])
+
+
+@admin_bp.route('/products', methods=['POST'])
+def admin_create_product():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    data = request.get_json() or {}
+    product = Product(
+        name=data.get('name'),
+        description=data.get('description'),
+        price=data.get('price', 0),
+        photo_path=data.get('photo_path')
+    )
+    db.session.add(product)
+    db.session.commit()
+    return jsonify({'id': product.id}), 201
+
+
+@admin_bp.route('/upload', methods=['POST'])
+def admin_upload():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed. Use: png, jpg, jpeg, gif, webp'}), 400
+    
+    # Create uploads folder if doesn't exist
+    import os
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
+    # Generate secure filename
+    filename = secure_filename(file.filename)
+    filename = f"{secrets.token_hex(8)}_{filename}"
+    
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+    
+    # Return relative path for web access
+    return jsonify({'url': f'/static/uploads/{filename}'}), 201
+
+
+@admin_bp.route('/products/<int:product_id>', methods=['PUT'])
+def admin_update_product(product_id):
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    product = get_product_by_id(product_id)
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
+
+    data = request.get_json() or {}
+    product.name = data.get('name', product.name)
+    product.description = data.get('description', product.description)
+    product.price = data.get('price', product.price)
+    product.photo_path = data.get('photo_path', product.photo_path)
+    db.session.commit()
+    return jsonify({'message': 'Product updated'})
+
+
+@admin_bp.route('/products/<int:product_id>', methods=['DELETE'])
+def admin_delete_product(product_id):
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    product = get_product_by_id(product_id)
+    if not product:
+        return jsonify({'error': 'Product not found'}), 404
+    product.soft_delete()
+    db.session.commit()
+    return jsonify({'message': 'Product deleted'})

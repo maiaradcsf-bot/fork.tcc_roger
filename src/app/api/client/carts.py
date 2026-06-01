@@ -1,111 +1,15 @@
-import secrets
-import os
-from werkzeug.utils import secure_filename
-from flask import current_app
-from app.api import api_bp
+from app.api.client import client_bp
+from flask import jsonify, request
+from app.api.utils import client_required, OPEN_CART_STATUSES, get_product_by_id
+from app.models.carts import Cart
+from app.models.cart_items import CartItem
+from app.models.order_items import OrderItem
+from app.models.orders import Order
+from app.models.status_enums import CartStatus, OrderStatus
 from app.models import db
 
-# --- Upload Config ---
 
-from app.api.utils import UPLOAD_FOLDER, allowed_file
-
-# --- Helpers ---
-
-def get_auth_token():
-    auth = request.headers.get('Authorization', '')
-    if auth.startswith('Bearer '):
-        return auth[7:]
-    return None
-
-
-def client_required():
-    token = get_auth_token()
-    if not token:
-        return None, jsonify({'error': 'Authorization token required'}), 401
-    client = Client.query.filter_by(auth_token=token).first()
-    if not client:
-        return None, jsonify({'error': 'Invalid client token'}), 401
-    if not client.active:
-        return None, jsonify({'error': 'Client account is inactive'}), 403
-    return client, None, None
-
-
-def admin_required():
-    token = get_auth_token()
-    if not token:
-        return None, jsonify({'error': 'Authorization token required'}), 401
-    user = User.query.filter_by(auth_token=token).first()
-    if not user:
-        return None, jsonify({'error': 'Invalid admin token'}), 401
-    if not any(rule.name == 'administrator' for rule in user.rules):
-        return None, jsonify({'error': 'Admin privileges required'}), 403
-    return user, None, None
-
-# Authentication routes moved to app.api.auth
-
-# --- File Upload ---
-
-@api_bp.route('/admin/upload', methods=['POST'])
-def admin_upload():
-    user, error, status = admin_required()
-    if error:
-        return error, status
-    
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed. Use: png, jpg, jpeg, gif, webp'}), 400
-    
-    # Create uploads folder if doesn't exist
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    
-    # Generate secure filename
-    filename = secure_filename(file.filename)
-    filename = f"{secrets.token_hex(8)}_{filename}"
-    
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-    
-    # Return relative path for web access
-    return jsonify({'url': f'/static/uploads/{filename}'}), 201
-
-
-
-
-@api_bp.route('/client/summary', methods=['GET'])
-def client_summary():
-    client, error, status = client_required()
-    if error:
-        return error, status
-
-    orders = client.orders or []
-    total_orders = len(orders)
-    pending_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.PENDING.value)
-    approved_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.APPROVED.value)
-    finished_count = sum(1 for o in orders if normalize_order_status(o.status) == OrderStatus.FINISHED.value)
-    total_quantity = sum(sum((item.quantity or 0) for item in (o.items or [])) for o in orders)
-    total_product_lines = sum(len(o.items or []) for o in orders)
-    total_value = sum(float(o.total or 0) for o in orders)
-    products_count = Product.query.filter(Product.deleted_at.is_(None)).count()
-
-    return jsonify({
-        'total_orders': total_orders,
-        'pending_orders': pending_count,
-        'approved_orders': approved_count,
-        'finished_orders': finished_count,
-        'total_quantity': total_quantity,
-        'total_product_lines': total_product_lines,
-        'total_value': total_value,
-        'products_count': products_count
-    })
-
-
-@api_bp.route('/client/carts', methods=['GET'])
+@client_bp.route('/carts', methods=['GET'])
 def client_carts():
     client, error, status = client_required()
     if error:
@@ -128,7 +32,7 @@ def client_carts():
     } for cart in client.carts])
 
 
-@api_bp.route('/client/carts', methods=['POST'])
+@client_bp.route('/carts', methods=['POST'])
 def create_client_cart():
     client, error, status = client_required()
     if error:
@@ -140,7 +44,7 @@ def create_client_cart():
     return jsonify({'id': cart.id, 'status': cart.status}), 201
 
 
-@api_bp.route('/client/carts/<int:cart_id>/items', methods=['POST'])
+@client_bp.route('/carts/<int:cart_id>/items', methods=['POST'])
 def add_cart_item(cart_id):
     client, error, status = client_required()
     if error:
@@ -184,7 +88,7 @@ def add_cart_item(cart_id):
     return jsonify({'id': item.id, 'product_id': product.id, 'quantity': item.quantity}), 201
 
 
-@api_bp.route('/client/carts/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
+@client_bp.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
 def update_cart_item(cart_id, item_id):
     client, error, status = client_required()
     if error:
@@ -220,7 +124,7 @@ def update_cart_item(cart_id, item_id):
     return jsonify({'id': item.id, 'product_id': item.product_id, 'quantity': item.quantity})
 
 
-@api_bp.route('/client/carts/<int:cart_id>/items/<int:item_id>', methods=['DELETE'])
+@client_bp.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['DELETE'])
 def delete_cart_item(cart_id, item_id):
     client, error, status = client_required()
     if error:
@@ -239,7 +143,7 @@ def delete_cart_item(cart_id, item_id):
     return jsonify({'message': 'Cart item removed'})
 
 
-@api_bp.route('/client/carts/<int:cart_id>/checkout', methods=['POST'])
+@client_bp.route('/carts/<int:cart_id>/checkout', methods=['POST'])
 def checkout_cart(cart_id):
     client, error, status = client_required()
     if error:
@@ -281,27 +185,3 @@ def checkout_cart(cart_id):
     db.session.commit()
 
     return jsonify({'order_id': order.id, 'total': float(order.total), 'status': order.status}), 201
-
-
-
-# --- Admin endpoints ---
-
-# Admin product endpoints moved to app.api.admin.products
-
-
-# Admin category endpoints moved to app.api.admin.categories
-
-
-# Admin stock moves endpoints moved to app.api.admin.stock_moves
-
-
-# Admin client endpoints moved to app.api.admin.clients
-
-
-# Admin users, permissions and rules moved to app.api.admin.users, permissions, rules
-
-
-# Admin stock endpoints moved to app.api.admin.stock
-
-
-# Admin order endpoints moved to app.api.admin.orders

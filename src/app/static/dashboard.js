@@ -65,7 +65,7 @@ function renderProducts() {
 // Função de teste para pegar itens da api
 async function getItens() {
     try {
-        const response = await fetch('/api/products')
+        const response = await fetch('/api/admin/products')
         if(!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
         }

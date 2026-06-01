@@ -11,16 +11,21 @@ Sistema de gerenciamento de pedidos desenvolvido em Flask com MySQL, utilizando 
 │   ├── requirements.txt    # Dependências Python
 │   └── mysql/              # Dados persistentes do MySQL
 ├── src/                    # Código-fonte da aplicação
-│   ├── app.py             # Aplicação principal
-│   ├── config.py          # Configurações
-│   ├── migrations/        # Migrations do Alembic
-│   ├── static/            # Arquivos estáticos (CSS, JS, imagens)
-│   └── templates/         # Templates HTML
-├── docker compose.yml     # Definição dos serviços Docker
-├── .env.example          # Exemplo de variáveis de ambiente
-├── .gitignore            # Arquivo de exclusão do Git
+│   ├── app/                # Aplicação Flask
+│   │   ├── __init__.py
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── static/
+│   │   └── templates/
+│   ├── config.py           # Configurações do app
+│   ├── wsgi.py             # Entrypoint WSGI da aplicação
+│   ├── migrations/         # Migrations do Alembic
+│   └── seeds/              # Scripts de seed de dados
+├── docker compose.yml      # Definição dos serviços Docker
+├── .env.example            # Exemplo de variáveis de ambiente
+├── .gitignore              # Arquivo de exclusão do Git
 ├── postman_collection.json # Coleção de API para Postman
-└── README.md             # Este arquivo
+└── README.md               # Este arquivo
 ```
 
 ## 🗂️ Estrutura do Banco de Dados
@@ -30,7 +35,7 @@ Tabelas principais:
 - `clients`: clientes com `name`, `email`, `password`, `phone`, `auth_token`
 - `categories`: categorias de produtos com `name`, `description`, `parent_id` (subcategorias)
 - `products`: produtos com `name`, `description`, `price`, `photo_path`
-- `product_categories`: tabela de associação entre produtos e categorias
+- `product_categories`: associação entre produtos e categorias
 - `stock`: estoque de produtos com `product_id`, `quantity`
 - `stock_moves`: histórico de movimentações de estoque com `stock_id`, `quantity_change`, `reason`, `created_at`
 - `carts`: carrinhos de compras com `client_id`, `status`, `created_at`, `updated_at`
@@ -38,8 +43,12 @@ Tabelas principais:
 - `orders`: pedidos com `client_id`, `cart_id`, `status`, `total`, `created_at`
 - `order_items`: itens de pedido com `order_id`, `product_id`, `quantity`, `unit_price`
 - `addresses`: endereços com `street`, `city`, `state`, `zipcode`, `country`, `address_type`
-- `client_addresses`: relacionamento cliente-endereço
-- `rules`, `permissions`, `rule_permissions`, `user_rules`: controle de permissões administrativas
+- `client_addresses`: relacionamento entre clientes e endereços
+- `rules`: políticas de autorização com `name`, `description`
+- `permissions`: permissões individuais com `name`, `description`
+- `rule_permissions`: associação entre regras e permissões
+- `user_rules`: associação entre usuários e regras
+- `status_enums`: enums de status usados pelo sistema (carrinhos, pedidos, etc.)
 
 ## 🧭 Estrutura da API
 
@@ -60,9 +69,7 @@ Tabelas principais:
 - `POST /api/client/carts/<cart_id>/checkout`
 
 ### Público
-- `GET /api/products`
-- `GET /api/categories`
-- `GET /api/categories/<category_id>/subcategories`
+- Nenhum endpoint público exposto diretamente. Use somente `/api/client/*` e `/api/admin/*`.
 
 ### Administração
 - `GET /api/admin/products`
@@ -229,7 +236,7 @@ O arquivo `.env` contém as seguintes variáveis:
 
 ```env
 # Flask Configuration
-FLASK_APP=app.py
+FLASK_APP=wsgi.py
 FLASK_ENV=development
 DEBUG=True
 
@@ -259,7 +266,7 @@ PMA_PASSWORD=developer
 
 As migrations do banco de dados estão em `src/migrations/versions/`. Para criar uma nova migration:
 
-1. Faça as alterações no modelo em `src/app.py`
+1. Faça as alterações no modelo em `src/app/__init__.py` ou no pacote `src/app`
 2. Execute:
    ```bash
    docker compose exec app flask db migrate -m "descrição"

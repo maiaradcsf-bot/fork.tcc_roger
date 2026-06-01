@@ -285,7 +285,8 @@ async function loadProducts() {
   tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">Carregando produtos...</td></tr>';
 
   try {
-    const resp = await fetch('/api/products');
+    const token = getClientToken();
+    const resp = await fetch('/api/client/products', { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const products = await resp.json();
     clientProductsCache = Array.isArray(products) ? products : [];
