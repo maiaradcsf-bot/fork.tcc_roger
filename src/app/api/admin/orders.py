@@ -7,6 +7,7 @@ from app.models.stock_moves import StockMove
 from app.models.order_items import OrderItem
 from app.models import db
 from app.models.status_enums import OrderStatus
+from datetime import datetime
 
 
 @admin_bp.route('/orders', methods=['GET'])
@@ -43,7 +44,20 @@ def admin_list_orders():
             'product_summary': ', '.join([item.product.name for item in order.items if item.product]) or None,
             'quantity_total': sum([item.quantity for item in order.items]) if order.items else 0,
             'cart_id': order.cart_id,
-            'created_at': order.created_at.isoformat() if order.created_at else None
+            'created_at': order.created_at.isoformat() if order.created_at else None,
+            'approved_user_id': order.approved_user_id,
+            'approved_at': order.approved_at.isoformat() if order.approved_at else None,
+            'approved_by_name': order.approved_by.username if order.approved_by else None,
+            'refused_user_id': order.refused_user_id,
+            'refused_at': order.refused_at.isoformat() if order.refused_at else None,
+            'refused_by_name': order.refused_by.username if order.refused_by else None,
+            'finished_user_id': order.finished_user_id,
+            'finished_at': order.finished_at.isoformat() if order.finished_at else None,
+            'finished_by_name': order.finished_by.username if order.finished_by else None,
+            'canceled_user_id': order.canceled_user_id,
+            'canceled_client_id': order.canceled_client_id,
+            'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
+            'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None)
         })
 
     return jsonify(result)
@@ -81,10 +95,24 @@ def admin_get_order(order_id):
         'total': float(total_value),
         'reason': order.reason,
         'created_at': order.created_at.isoformat() if order.created_at else None,
+        'approved_user_id': order.approved_user_id,
+        'approved_at': order.approved_at.isoformat() if order.approved_at else None,
+        'approved_by_name': order.approved_by.username if order.approved_by else None,
+        'refused_user_id': order.refused_user_id,
+        'refused_at': order.refused_at.isoformat() if order.refused_at else None,
+        'refused_by_name': order.refused_by.username if order.refused_by else None,
+        'finished_user_id': order.finished_user_id,
+        'finished_at': order.finished_at.isoformat() if order.finished_at else None,
+        'finished_by_name': order.finished_by.username if order.finished_by else None,
+        'canceled_user_id': order.canceled_user_id,
+        'canceled_client_id': order.canceled_client_id,
+        'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
+        'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
         'items': [{
             'product': item.product.name if item.product else None,
             'description': item.product.description if item.product else None,
             'image_url': item.product.photo_path if item.product else None,
+            'barcode': item.product.barcode if item.product else None,
             'quantity': item.quantity,
             'unit_price': float(item.unit_price) if item.unit_price is not None else (float(item.product.price) if item.product and getattr(item.product, 'price', None) is not None else 0),
             'subtotal': float(item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)) * (item.quantity or 0)
@@ -153,6 +181,8 @@ def admin_update_order_status(order_id):
     if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
         return jsonify({'error': 'Transição de status inválida'}), 400
 
+    current_time = datetime.utcnow()
+
     # If transition to 'finished', apply stock changes and create StockMoves
     if new_status == OrderStatus.FINISHED.value and new_status != current_status:
         try:
@@ -179,11 +209,24 @@ def admin_update_order_status(order_id):
                 move_type = 'entrada' if quantity_change_int > 0 else 'saida'
                 client_name = (order.client.name if getattr(order, 'client', None) and getattr(order.client, 'name', None) else 'Desconhecido')
                 reason = f'Solicitação de retirada #{order.id}, Cliente #{order.client_id} - {client_name}'
-                move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type)
+                move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type, user_id=user.id)
                 db.session.add(move)
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': 'Falha ao aplicar alterações de estoque', 'details': str(e)}), 500
+
+    if new_status == OrderStatus.APPROVED.value and new_status != current_status:
+        order.approved_user_id = user.id
+        order.approved_at = current_time
+    elif new_status == OrderStatus.REJECTED.value and new_status != current_status:
+        order.refused_user_id = user.id
+        order.refused_at = current_time
+    elif new_status == OrderStatus.CANCELLED.value and new_status != current_status:
+        order.canceled_user_id = user.id
+        order.canceled_at = current_time
+    elif new_status == OrderStatus.FINISHED.value and new_status != current_status:
+        order.finished_user_id = user.id
+        order.finished_at = current_time
 
     order.status = new_status
     db.session.commit()

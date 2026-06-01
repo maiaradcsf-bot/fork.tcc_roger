@@ -8,6 +8,7 @@ from app.models.order_items import OrderItem
 from app.models.products import Product
 from app.models import db
 from app.models.status_enums import CartStatus, OrderStatus
+from datetime import datetime
 
 
 @client_bp.route('/orders', methods=['GET'])
@@ -44,6 +45,19 @@ def client_orders():
             'quantity_total': sum([item.quantity for item in order.items]) if order.items else 0,
             'cart_id': order.cart_id,
             'created_at': order.created_at.isoformat() if order.created_at else None,
+            'approved_user_id': order.approved_user_id,
+            'approved_at': order.approved_at.isoformat() if order.approved_at else None,
+            'approved_by_name': order.approved_by.username if order.approved_by else None,
+            'refused_user_id': order.refused_user_id,
+            'refused_at': order.refused_at.isoformat() if order.refused_at else None,
+            'refused_by_name': order.refused_by.username if order.refused_by else None,
+            'finished_user_id': order.finished_user_id,
+            'finished_at': order.finished_at.isoformat() if order.finished_at else None,
+            'finished_by_name': order.finished_by.username if order.finished_by else None,
+            'canceled_user_id': order.canceled_user_id,
+            'canceled_client_id': order.canceled_client_id,
+            'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
+            'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
             'items': [{
                 'product': item.product.name if item.product else None,
                 'product_name': item.product.name if item.product else None,
@@ -89,10 +103,25 @@ def client_get_order(order_id):
         'total': float(total_value),
         'reason': order.reason,
         'created_at': order.created_at.isoformat() if order.created_at else None,
+        'approved_user_id': order.approved_user_id,
+        'approved_at': order.approved_at.isoformat() if order.approved_at else None,
+        'approved_by_name': order.approved_by.username if order.approved_by else None,
+        'refused_user_id': order.refused_user_id,
+        'refused_at': order.refused_at.isoformat() if order.refused_at else None,
+        'refused_by_name': order.refused_by.username if order.refused_by else None,
+        'finished_user_id': order.finished_user_id,
+        'finished_at': order.finished_at.isoformat() if order.finished_at else None,
+        'finished_by_name': order.finished_by.username if order.finished_by else None,
+        'canceled_user_id': order.canceled_user_id,
+        'canceled_client_id': order.canceled_client_id,
+        'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
+        'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
         'items': [{
             'product': item.product.name if item.product else None,
+            'product_name': item.product.name if item.product else None,
             'description': item.product.description if item.product else None,
             'image_url': item.product.photo_path if item.product else None,
+            'barcode': item.product.barcode if item.product else None,
             'quantity': item.quantity,
             'unit_price': float(item.unit_price) if item.unit_price is not None else (float(item.product.price) if item.product and getattr(item.product, 'price', None) is not None else 0),
             'subtotal': float(item.unit_price if item.unit_price is not None else (item.product.price if item.product else 0)) * (item.quantity or 0)
@@ -126,6 +155,8 @@ def client_update_order_status(order_id):
 
     new_status = OrderStatus.CANCELLED.value
     order.status = new_status
+    order.canceled_client_id = client.id
+    order.canceled_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'id': order.id, 'status': order.status})
 

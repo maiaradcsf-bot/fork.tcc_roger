@@ -464,10 +464,13 @@ async function openOrderDetailModal(orderId) {
   const clientField = document.getElementById('orderDetailClient');
   const statusField = document.getElementById('orderDetailStatus');
   const totalField = document.getElementById('orderDetailTotal');
+  const reasonRow = document.getElementById('orderDetailReasonRow');
+  const reasonField = document.getElementById('orderDetailReason');
   const createdAtField = document.getElementById('orderDetailCreatedAt');
+  const auditContainer = document.getElementById('orderDetailAudit');
   const itemsBody = document.getElementById('orderDetailItemsBody');
 
-  if (!modalLabel || !clientField || !statusField || !totalField || !createdAtField || !itemsBody) return;
+  if (!modalLabel || !clientField || !statusField || !totalField || !reasonRow || !reasonField || !createdAtField || !auditContainer || !itemsBody) return;
 
   itemsBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted">Carregando detalhes...</td></tr>`;
   modalLabel.textContent = 'Detalhes da Solicitação';
@@ -476,9 +479,14 @@ async function openOrderDetailModal(orderId) {
     const order = await fetchJson(`/orders/${orderId}`);
     clientField.textContent = order.client || order.client_name || '—';
     statusField.innerHTML = createStatusBadge(order.status);
-    // show reason when present
-    const reasonEl = document.getElementById('orderDetailReason');
-    if (reasonEl) reasonEl.textContent = order.reason || '--';
+    const reason = order.reason ? order.reason.trim() : '';
+    if (reason) {
+      reasonField.textContent = reason;
+      reasonRow.classList.remove('d-none');
+    } else {
+      reasonField.textContent = '';
+      reasonRow.classList.add('d-none');
+    }
     // Use o total retornado pelo backend quando disponível, caso contrário calcule a partir dos itens
     let displayedTotal = Number(order.total || 0);
     if ((!displayedTotal || displayedTotal === 0) && Array.isArray(order.items) && order.items.length > 0) {
@@ -491,20 +499,41 @@ async function openOrderDetailModal(orderId) {
     totalField.textContent = `R$ ${Number(displayedTotal || 0).toFixed(2)}`;
     createdAtField.textContent = formatDate(order.created_at || order.createdAt || '');
 
+    const auditEntries = [];
+    if (order.approved_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Aprovado em:</strong> ${formatDate(order.approved_at)}${order.approved_by_name ? ` <span class="text-muted">por ${escapeHtml(order.approved_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.refused_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Rejeitado em:</strong> ${formatDate(order.refused_at)}${order.refused_by_name ? ` <span class="text-muted">por ${escapeHtml(order.refused_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.finished_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Retirado em:</strong> ${formatDate(order.finished_at)}${order.finished_by_name ? ` <span class="text-muted">por ${escapeHtml(order.finished_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.canceled_at) {
+      const canceledBy = order.canceled_by_name || order.canceled_by_client_name || '';
+      auditEntries.push(`<div class="mb-2"><strong>Cancelado em:</strong> ${formatDate(order.canceled_at)}${canceledBy ? ` <span class="text-muted">por ${escapeHtml(canceledBy)}</span>` : ''}</div>`);
+    }
+    auditContainer.innerHTML = auditEntries.length ? auditEntries.join('') : '<p class="mb-0 text-muted">Nenhuma ação adicional registrada.</p>';
+
     if (!Array.isArray(order.items) || order.items.length === 0) {
       itemsBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted">Nenhum produto encontrado.</td></tr>`;
     } else {
       itemsBody.innerHTML = order.items
-        .map((item) => `
-          <tr>
-            <td>${item.product || item.product_name || '—'}</td>
-            <td>${item.description || '—'}</td>
-            <td>${item.image_url ? `<img src="${item.image_url}" alt="${item.product || 'Produto'}" style="height: 60px; width: auto; border-radius: 4px;">` : '—'}</td>
-            <td>${item.quantity ?? '—'}</td>
-            <td>R$ ${Number(item.unit_price || 0).toFixed(2)}</td>
-            <td>R$ ${Number((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)}</td>
-          </tr>
-        `)
+        .map((item) => {
+          const productName = item.product || item.product_name || '—';
+          const img = item.image_url ? `<img src="${item.image_url}" alt="${productName}" style="height: 50px; width: auto; border-radius: 4px; margin-right: 10px; vertical-align: middle;">` : '';
+          const barcode = item.barcode || item.product_barcode || '—';
+          return `
+            <tr>
+              <td>${img}<span style="vertical-align: middle;">${productName}</span></td>
+              <td>${item.description || '—'}</td>
+              <td>${barcode}</td>
+              <td>${item.quantity ?? '—'}</td>
+              <td>R$ ${Number(item.unit_price || 0).toFixed(2)}</td>
+              <td>R$ ${Number((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)}</td>
+            </tr>
+          `;
+        })
         .join('');
     }
 

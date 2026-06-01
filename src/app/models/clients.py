@@ -16,7 +16,8 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     carts = db.relationship('Cart', back_populates='client', lazy=True)
-    orders = db.relationship('Order', back_populates='client', lazy=True)
+    orders = db.relationship('Order', back_populates='client', lazy=True, foreign_keys='Order.client_id')
+    canceled_orders = db.relationship('Order', foreign_keys='Order.canceled_client_id', back_populates='canceled_by_client', lazy=True)
     addresses = db.relationship('Address', secondary='client_addresses', back_populates='clients')
     rules = db.relationship('Rule', secondary='client_rules', back_populates='clients')
 

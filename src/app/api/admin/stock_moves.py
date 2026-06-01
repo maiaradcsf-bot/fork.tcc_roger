@@ -43,6 +43,7 @@ def admin_list_stock_moves():
         'product_name': move.stock.product.name if move.stock and move.stock.product else 'Produto desconhecido',
         'quantity_change': move.quantity_change,
         'reason': move.reason,
+        'user_id': move.user_id,
         'created_at': move.created_at.isoformat()
     } for move in stock_moves])
 
@@ -95,7 +96,7 @@ def admin_create_stock_move():
     # Determine move_type automatically
     move_type = 'entrada' if quantity_change_int > 0 else 'saida'
     
-    move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type)
+    move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type, user_id=user.id)
     db.session.add(move)
     db.session.commit()
     return jsonify({'id': move.id}), 201

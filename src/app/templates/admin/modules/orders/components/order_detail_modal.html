@@ -6,27 +6,37 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
       <div class="modal-body">
-        <div class="row mb-4">
+        <div class="row mb-3 align-items-start">
           <div class="col-md-6">
-            <h6>Cliente</h6>
-            <p id="orderDetailClient" class="mb-1">--</p>
-            <p id="orderDetailStatus" class="mb-0"></p>
+            <h6 class="text-uppercase text-secondary small mb-2">Cliente</h6>
+            <p id="orderDetailClient" class="h5 fw-bold text-dark mb-2">--</p>
+            <div id="orderDetailStatus" class="mb-0"></div>
           </div>
-          <div class="col-md-6 text-md-end">
-            <h6>Resumo</h6>
+          <div class="col-md-6">
+            <h6 class="text-uppercase text-secondary small mb-2">Resumo</h6>
             <p class="mb-1"><strong>Total:</strong> <span id="orderDetailTotal">R$ 0,00</span></p>
-             <p class="mb-1"><strong>Motivo:</strong> <span id="orderDetailReason">--</span></p>
-            <p class="mb-0"><strong>Solicitado em:</strong> <span id="orderDetailCreatedAt">--</span></p>
+            <p class="mb-1"><strong>Solicitado em:</strong> <span id="orderDetailCreatedAt">--</span></p>
           </div>
         </div>
-
+        <div class="row mb-4">
+          <div class="col-12">
+            <p class="mb-2 d-none" id="orderDetailReasonRow"><strong>Motivo:</strong> <span id="orderDetailReason">--</span></p>
+          </div>
+        </div>
+        <div class="row mb-4">
+          <div class="col-12">
+            <div id="orderDetailAudit" class="border rounded-3 p-3 bg-light">
+              <p class="mb-0 text-muted">Carregando histórico...</p>
+            </div>
+          </div>
+        </div>
         <div class="table-responsive">
           <table class="table table-borderless align-middle mb-0">
             <thead class="table-light">
               <tr>
                 <th>Produto</th>
                 <th>Descrição</th>
-                <th>Imagem</th>
+                <th>Código de Barras</th>
                 <th>Quantidade</th>
                 <th>Valor unitário</th>
                 <th>Subtotal</th>

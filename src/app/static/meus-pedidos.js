@@ -68,10 +68,7 @@ async function loadClientOrders(button = null) {
     return;
   }
 
-  if (!hasClientPermission('clients.orders.list')) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">Você não tem permissão para visualizar solicitações.</td></tr>';
-    return;
-  }
+  
 
   if (button) {
     button.disabled = true;
@@ -154,10 +151,13 @@ async function openClientOrderDetailModal(orderId) {
   const clientField = document.getElementById('clientOrderDetailClient');
   const statusField = document.getElementById('clientOrderDetailStatus');
   const totalField = document.getElementById('clientOrderDetailTotal');
+  const reasonRow = document.getElementById('clientOrderDetailReasonRow');
+  const reasonField = document.getElementById('clientOrderDetailReason');
   const createdAtField = document.getElementById('clientOrderDetailCreatedAt');
+  const auditContainer = document.getElementById('clientOrderDetailAudit');
   const itemsBody = document.getElementById('clientOrderDetailItemsBody');
 
-  if (!modalLabel || !clientField || !statusField || !totalField || !createdAtField || !itemsBody) return;
+  if (!modalLabel || !clientField || !statusField || !totalField || !reasonRow || !reasonField || !createdAtField || !auditContainer || !itemsBody) return;
 
   itemsBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted">Carregando detalhes...</td></tr>`;
   modalLabel.textContent = 'Detalhes da Solicitação';
@@ -173,25 +173,51 @@ async function openClientOrderDetailModal(orderId) {
     const order = await resp.json();
     clientField.textContent = order.client || '—';
     statusField.innerHTML = createClientOrderStatusBadge(order.status);
-    totalField.textContent = formatPrice(order.total || 0);
-    const reasonEl = document.getElementById('clientOrderDetailReason');
-    if (reasonEl) reasonEl.textContent = order.reason || '--';
+    const reason = order.reason ? order.reason.trim() : '';
+    if (reason) {
+      reasonField.textContent = reason;
+      reasonRow.classList.remove('d-none');
+    } else {
+      reasonField.textContent = '';
+      reasonRow.classList.add('d-none');
+    }
     createdAtField.textContent = formatOrderDate(order.created_at || order.createdAt || '');
+
+    const auditEntries = [];
+    if (order.approved_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Aprovado em:</strong> ${formatOrderDate(order.approved_at)}${order.approved_by_name ? ` <span class="text-muted">por ${escapeHtml(order.approved_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.refused_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Rejeitado em:</strong> ${formatOrderDate(order.refused_at)}${order.refused_by_name ? ` <span class="text-muted">por ${escapeHtml(order.refused_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.finished_at) {
+      auditEntries.push(`<div class="mb-2"><strong>Retirado em:</strong> ${formatOrderDate(order.finished_at)}${order.finished_by_name ? ` <span class="text-muted">por ${escapeHtml(order.finished_by_name)}</span>` : ''}</div>`);
+    }
+    if (order.canceled_at) {
+      const canceledBy = order.canceled_by_name || order.canceled_by_client_name || '';
+      auditEntries.push(`<div class="mb-2"><strong>Cancelado em:</strong> ${formatOrderDate(order.canceled_at)}${canceledBy ? ` <span class="text-muted">por ${escapeHtml(canceledBy)}</span>` : ''}</div>`);
+    }
+    auditContainer.innerHTML = auditEntries.length ? auditEntries.join('') : '<p class="mb-0 text-muted">Nenhuma ação adicional registrada.</p>';
 
     if (!Array.isArray(order.items) || order.items.length === 0) {
       itemsBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted">Nenhum produto encontrado.</td></tr>`;
     } else {
       itemsBody.innerHTML = order.items
-        .map((item) => `
-          <tr>
-            <td>${escapeHtml(item.product || item.product_name || '—')}</td>
-            <td>${escapeHtml(item.description || '—')}</td>
-            <td>${item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.product || 'Produto')}" style="height: 60px; width: auto; border-radius: 4px;">` : '—'}</td>
-            <td>${item.quantity ?? '—'}</td>
-            <td>${formatPrice(item.unit_price)}</td>
-            <td>${formatPrice((item.unit_price || 0) * (item.quantity || 0))}</td>
-          </tr>
-        `)
+        .map((item) => {
+          const productName = item.product || item.product_name || '—';
+          const img = item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(productName)}" style="height: 50px; width: auto; border-radius: 4px; margin-right: 10px; vertical-align: middle;">` : '';
+          const barcode = item.barcode || item.product_barcode || '—';
+          return `
+            <tr>
+              <td>${img}<span style="vertical-align: middle;">${escapeHtml(productName)}</span></td>
+              <td>${escapeHtml(item.description || '—')}</td>
+              <td>${escapeHtml(barcode)}</td>
+              <td>${item.quantity ?? '—'}</td>
+              <td>${formatPrice(item.unit_price)}</td>
+              <td>${formatPrice((item.unit_price || 0) * (item.quantity || 0))}</td>
+            </tr>
+          `;
+        })
         .join('');
     }
 
