@@ -1,12 +1,13 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required
+from app.api.utils import admin_required, permission_required
 from app.models.clients import Client
 from app.models.orders import Order
 from app.models import db
 
 
 @admin_bp.route('/clients', methods=['GET'])
+@permission_required('admin.clients.list')
 def admin_list_clients():
     user, error, status = admin_required()
     if error:
@@ -22,6 +23,7 @@ def admin_list_clients():
 
 
 @admin_bp.route('/clients/<int:client_id>/status', methods=['PATCH'])
+@permission_required('admin.clients.edit')
 def admin_update_client_status(client_id):
     user, error, status = admin_required()
     if error:
@@ -54,6 +56,7 @@ def admin_update_client_status(client_id):
 
 
 @admin_bp.route('/clients/summary', methods=['GET'])
+@permission_required('admin.clients.list')
 def admin_clients_summary():
     user, error, status = admin_required()
     if error:
@@ -78,6 +81,7 @@ def admin_clients_summary():
 
 
 @admin_bp.route('/clients/<int:client_id>/details', methods=['GET'])
+@permission_required('admin.clients.view')
 def admin_client_details(client_id):
     user, error, status = admin_required()
     if error:

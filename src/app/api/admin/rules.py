@@ -1,14 +1,15 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required
+from app.api.utils import admin_required, permission_required
 from app.models.rules import Rule
 from app.models.permissions import Permission
 from app.models import db
 
 
 @admin_bp.route('/rules', methods=['GET'])
+@permission_required('admin.settings.profiles.manage')
 def admin_list_rules():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.profiles.manage')
     if error:
         return error, status
     rules = Rule.query.all()
@@ -22,8 +23,9 @@ def admin_list_rules():
 
 
 @admin_bp.route('/rules', methods=['POST'])
+@permission_required('admin.settings.profiles.manage')
 def admin_create_rule():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.profiles.manage')
     if error:
         return error, status
     data = request.get_json() or {}
@@ -42,8 +44,9 @@ def admin_create_rule():
 
 
 @admin_bp.route('/rules/<int:rule_id>', methods=['PUT'])
+@permission_required('admin.settings.profiles.manage')
 def admin_update_rule(rule_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.profiles.manage')
     if error:
         return error, status
     rule = Rule.query.get(rule_id)
@@ -63,8 +66,9 @@ def admin_update_rule(rule_id):
 
 
 @admin_bp.route('/rules/<int:rule_id>', methods=['DELETE'])
+@permission_required('admin.settings.profiles.manage')
 def admin_delete_rule(rule_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.profiles.manage')
     if error:
         return error, status
     rule = Rule.query.get(rule_id)

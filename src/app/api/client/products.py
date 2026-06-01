@@ -1,9 +1,10 @@
 from app.api.client import client_bp
 from flask import jsonify
-from app.api.utils import client_required, get_active_products
+from app.api.utils import client_required, client_permission_required, get_active_products
 
 
 @client_bp.route('/products', methods=['GET'])
+@client_permission_required('clients.products.list')
 def client_list_products():
     client, error, status = client_required()
     if error:

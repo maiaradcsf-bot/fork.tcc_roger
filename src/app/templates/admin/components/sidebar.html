@@ -10,12 +10,12 @@
   </div>
 
   <div class="list-group list-group-flush">
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('views.dashboard') }}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'orders' %}active{% endif %}" href="{{ url_for('views.orders') }}"><i class="bi bi-card-checklist me-2"></i> Solicitações</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'categories' %}active{% endif %}" href="{{ url_for('views.categories') }}"><i class="bi bi-tags me-2"></i> Categorias</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'products' %}active{% endif %}" href="{{ url_for('views.products') }}"><i class="bi bi-box-seam me-2"></i> Produtos</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'stock_moves' %}active{% endif %}" href="{{ url_for('views.products_stock_moves') }}"><i class="bi bi-archive me-2"></i> Mov. Estoque</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'clients' %}active{% endif %}" href="{{ url_for('views.clients') }}"><i class="bi bi-people me-2"></i> Clientes</a>
-    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('views.settings') }}"><i class="bi bi-gear me-2"></i> Configurações</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('views.dashboard') }}" data-permission="admin.dashboard.view"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'orders' %}active{% endif %}" href="{{ url_for('views.orders') }}" data-permission="admin.orders.list"><i class="bi bi-card-checklist me-2"></i> Solicitações</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'categories' %}active{% endif %}" href="{{ url_for('views.categories') }}" data-permission="admin.categories.list"><i class="bi bi-tags me-2"></i> Categorias</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'products' %}active{% endif %}" href="{{ url_for('views.products') }}" data-permission="admin.products.list"><i class="bi bi-box-seam me-2"></i> Produtos</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'stock_moves' %}active{% endif %}" href="{{ url_for('views.products_stock_moves') }}" data-permission="admin.stock.moves.list"><i class="bi bi-archive me-2"></i> Mov. Estoque</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'clients' %}active{% endif %}" href="{{ url_for('views.clients') }}" data-permission="admin.clients.list"><i class="bi bi-people me-2"></i> Clientes</a>
+    <a class="list-group-item list-group-item-action bg-dark text-white {% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('views.settings') }}" data-permission="admin.settings.permissions.manage|admin.settings.profiles.manage|admin.settings.users.manage"><i class="bi bi-gear me-2"></i> Configurações</a>
   </div>
 </aside>

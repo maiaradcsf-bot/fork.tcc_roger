@@ -1,6 +1,6 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request, current_app
-from app.api.utils import admin_required, get_product_by_id
+from app.api.utils import admin_required, permission_required, get_product_by_id
 from app.models.stock_moves import StockMove
 from app.models.stock import Stock
 from app.models import db
@@ -9,6 +9,7 @@ from sqlalchemy import and_
 
 
 @admin_bp.route('/stock/moves', methods=['GET'])
+@permission_required('admin.stock.moves.list')
 def admin_list_stock_moves():
     user, error, status = admin_required()
     if error:
@@ -47,6 +48,7 @@ def admin_list_stock_moves():
 
 
 @admin_bp.route('/stock/moves', methods=['POST'])
+@permission_required('admin.stock.moves.create')
 def admin_create_stock_move():
     user, error, status = admin_required()
     if error:

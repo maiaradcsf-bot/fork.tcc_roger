@@ -1,11 +1,12 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required
+from app.api.utils import admin_required, permission_required
 from app.models.categories import Category
 from app.models import db
 
 
 @admin_bp.route('/categories', methods=['GET'])
+@permission_required('admin.categories.list')
 def admin_list_categories():
     user, error, status = admin_required()
     if error:
@@ -22,8 +23,9 @@ def admin_list_categories():
 
 
 @admin_bp.route('/categories', methods=['POST'])
+@permission_required('admin.categories.create')
 def admin_create_category():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.categories.create')
     if error:
         return error, status
     data = request.get_json() or {}
@@ -44,8 +46,9 @@ def admin_create_category():
 
 
 @admin_bp.route('/categories/<int:category_id>', methods=['PUT'])
+@permission_required('admin.categories.edit')
 def admin_update_category(category_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.categories.edit')
     if error:
         return error, status
     category = Category.query.get(category_id)
@@ -65,8 +68,9 @@ def admin_update_category(category_id):
 
 
 @admin_bp.route('/categories/<int:category_id>', methods=['DELETE'])
+@permission_required('admin.categories.delete')
 def admin_delete_category(category_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.categories.delete')
     if error:
         return error, status
     category = Category.query.get(category_id)

@@ -1,6 +1,6 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request, current_app
-from app.api.utils import normalize_order_status, get_product_by_id, admin_required
+from app.api.utils import normalize_order_status, get_product_by_id, admin_required, permission_required
 from app.models.orders import Order
 from app.models.stock import Stock
 from app.models.stock_moves import StockMove
@@ -10,8 +10,9 @@ from app.models.status_enums import OrderStatus
 
 
 @admin_bp.route('/orders', methods=['GET'])
+@permission_required('admin.orders.list')
 def admin_list_orders():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.orders.list')
     if error:
         return error, status
 
@@ -49,6 +50,7 @@ def admin_list_orders():
 
 
 @admin_bp.route('/orders/<int:order_id>', methods=['GET'])
+@permission_required('admin.orders.list')
 def admin_get_order(order_id):
     user, error, status = admin_required()
     if error:
@@ -95,6 +97,26 @@ def admin_update_order_status(order_id):
     user, error, status = admin_required()
     if error:
         return error, status
+
+    data = request.get_json() or {}
+    action = data.get('action')
+    if not action:
+        return jsonify({'error': 'Ação é obrigatória'}), 400
+    action_permission_map = {
+        'approve': 'admin.orders.approve',
+        'approved': 'admin.orders.approve',
+        'reject': 'admin.orders.reject',
+        'rejected': 'admin.orders.reject',
+        'cancel': 'admin.orders.cancel',
+        'cancelled': 'admin.orders.cancel',
+        'canceled': 'admin.orders.cancel',
+        'finish': 'admin.orders.approve',
+        'finished': 'admin.orders.approve',
+        'picked_up': 'admin.orders.approve',
+    }
+    required_permission = action_permission_map.get(action)
+    if required_permission and not user.has_permission(required_permission):
+        return jsonify({'error': 'Permissão insuficiente'}), 403
 
     order = Order.query.get(order_id)
     if not order:

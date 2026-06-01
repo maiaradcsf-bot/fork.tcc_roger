@@ -1,6 +1,6 @@
 from app.api.client import client_bp
 from flask import jsonify, request, current_app
-from app.api.utils import normalize_order_status, get_product_by_id, OPEN_CART_STATUSES, client_required
+from app.api.utils import normalize_order_status, get_product_by_id, OPEN_CART_STATUSES, client_required, client_permission_required
 from app.models.orders import Order
 from app.models.carts import Cart
 from app.models.cart_items import CartItem
@@ -11,6 +11,7 @@ from app.models.status_enums import CartStatus, OrderStatus
 
 
 @client_bp.route('/orders', methods=['GET'])
+@client_permission_required('clients.orders.list')
 def client_orders():
     client, error, status = client_required()
     if error:
@@ -56,6 +57,7 @@ def client_orders():
 
 
 @client_bp.route('/orders/<int:order_id>', methods=['GET'])
+@client_permission_required('clients.orders.view')
 def client_get_order(order_id):
     client, error, status = client_required()
     if error:
@@ -99,6 +101,7 @@ def client_get_order(order_id):
 
 
 @client_bp.route('/orders/<int:order_id>/status', methods=['PATCH'])
+@client_permission_required('clients.orders.cancel')
 def client_update_order_status(order_id):
     client, error, status = client_required()
     if error:
@@ -128,6 +131,7 @@ def client_update_order_status(order_id):
 
 
 @client_bp.route('/orders', methods=['POST'])
+@client_permission_required('clients.products.request')
 def client_create_order():
     client, error, status = client_required()
     if error:

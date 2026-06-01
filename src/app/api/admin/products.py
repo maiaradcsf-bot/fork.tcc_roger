@@ -2,7 +2,7 @@ import os
 import secrets
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required, get_active_products, get_product_by_id, UPLOAD_FOLDER, allowed_file
+from app.api.utils import admin_required, permission_required, get_active_products, get_product_by_id, UPLOAD_FOLDER, allowed_file
 from werkzeug.utils import secure_filename
 from app.models.products import Product
 from app.models.categories import Category
@@ -23,6 +23,7 @@ def _serialize_product_categories(product):
 
 
 @admin_bp.route('/products', methods=['GET'])
+@permission_required('admin.products.list')
 def admin_list_products():
     user, error, status = admin_required()
     if error:
@@ -44,6 +45,7 @@ def admin_list_products():
 
 
 @admin_bp.route('/products', methods=['POST'])
+@permission_required('admin.products.create')
 def admin_create_product():
     user, error, status = admin_required()
     if error:
@@ -95,6 +97,7 @@ def admin_create_product():
 
 
 @admin_bp.route('/upload', methods=['POST'])
+@permission_required('admin.products.edit')
 def admin_upload():
     user, error, status = admin_required()
     if error:
@@ -126,6 +129,7 @@ def admin_upload():
 
 
 @admin_bp.route('/products/<int:product_id>', methods=['PUT'])
+@permission_required('admin.products.edit')
 def admin_update_product(product_id):
     user, error, status = admin_required()
     if error:
@@ -177,6 +181,7 @@ def admin_update_product(product_id):
 
 
 @admin_bp.route('/products/<int:product_id>', methods=['DELETE'])
+@permission_required('admin.products.delete')
 def admin_delete_product(product_id):
     user, error, status = admin_required()
     if error:

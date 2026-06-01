@@ -1,11 +1,12 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required
+from app.api.utils import admin_required, permission_required
 from app.models.permissions import Permission
 from app.models import db
 
 
 @admin_bp.route('/permissions', methods=['GET'])
+@permission_required('admin.settings.permissions.manage')
 def admin_list_permissions():
     user, error, status = admin_required()
     if error:
@@ -19,8 +20,9 @@ def admin_list_permissions():
 
 
 @admin_bp.route('/permissions', methods=['POST'])
+@permission_required('admin.settings.permissions.manage')
 def admin_create_permission():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.permissions.manage')
     if error:
         return error, status
     data = request.get_json() or {}
@@ -36,8 +38,9 @@ def admin_create_permission():
 
 
 @admin_bp.route('/permissions/<int:permission_id>', methods=['PUT'])
+@permission_required('admin.settings.permissions.manage')
 def admin_update_permission(permission_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.permissions.manage')
     if error:
         return error, status
     permission = Permission.query.get(permission_id)
@@ -54,8 +57,9 @@ def admin_update_permission(permission_id):
 
 
 @admin_bp.route('/permissions/<int:permission_id>', methods=['DELETE'])
+@permission_required('admin.settings.permissions.manage')
 def admin_delete_permission(permission_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.permissions.manage')
     if error:
         return error, status
     permission = Permission.query.get(permission_id)

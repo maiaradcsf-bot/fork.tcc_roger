@@ -61,6 +61,7 @@ def seed_data():
             ('clients.products.request', 'Solicitar produto para cliente'),
             ('clients.orders.list', 'Listar solicitações para cliente'),
             ('clients.orders.view', 'Visualizar solicitação para cliente'),
+            ('clients.orders.cancel', 'Cancelar solicitação para cliente'),
             ('clients.profile.view', 'Visualizar perfil do cliente'),
             ('clients.profile.edit', 'Editar perfil do cliente'),
             ('clients.cart.manage', 'Gerenciar carrinho do cliente'),

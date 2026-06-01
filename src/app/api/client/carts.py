@@ -1,6 +1,6 @@
 from app.api.client import client_bp
 from flask import jsonify, request
-from app.api.utils import client_required, OPEN_CART_STATUSES, get_product_by_id
+from app.api.utils import client_required, client_permission_required, OPEN_CART_STATUSES, get_product_by_id
 from app.models.carts import Cart
 from app.models.cart_items import CartItem
 from app.models.order_items import OrderItem
@@ -10,6 +10,7 @@ from app.models import db
 
 
 @client_bp.route('/carts', methods=['GET'])
+@client_permission_required('clients.cart.manage')
 def client_carts():
     client, error, status = client_required()
     if error:
@@ -33,6 +34,7 @@ def client_carts():
 
 
 @client_bp.route('/carts', methods=['POST'])
+@client_permission_required('clients.cart.manage')
 def create_client_cart():
     client, error, status = client_required()
     if error:
@@ -45,6 +47,7 @@ def create_client_cart():
 
 
 @client_bp.route('/carts/<int:cart_id>/items', methods=['POST'])
+@client_permission_required('clients.cart.manage')
 def add_cart_item(cart_id):
     client, error, status = client_required()
     if error:
@@ -89,6 +92,7 @@ def add_cart_item(cart_id):
 
 
 @client_bp.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['PUT'])
+@client_permission_required('clients.cart.manage')
 def update_cart_item(cart_id, item_id):
     client, error, status = client_required()
     if error:
@@ -125,6 +129,7 @@ def update_cart_item(cart_id, item_id):
 
 
 @client_bp.route('/carts/<int:cart_id>/items/<int:item_id>', methods=['DELETE'])
+@client_permission_required('clients.cart.manage')
 def delete_cart_item(cart_id, item_id):
     client, error, status = client_required()
     if error:
@@ -144,6 +149,7 @@ def delete_cart_item(cart_id, item_id):
 
 
 @client_bp.route('/carts/<int:cart_id>/checkout', methods=['POST'])
+@client_permission_required('clients.cart.manage')
 def checkout_cart(cart_id):
     client, error, status = client_required()
     if error:

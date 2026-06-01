@@ -19,3 +19,17 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
+
+    def has_permission(self, permission_name):
+        return any(
+            permission.name == permission_name
+            for rule in self.rules
+            for permission in rule.permissions
+        )
+
+    def get_permission_names(self):
+        return sorted({
+            permission.name
+            for rule in self.rules
+            for permission in rule.permissions
+        })

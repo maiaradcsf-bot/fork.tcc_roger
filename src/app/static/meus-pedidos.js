@@ -68,6 +68,11 @@ async function loadClientOrders(button = null) {
     return;
   }
 
+  if (!hasClientPermission('clients.orders.list')) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">Você não tem permissão para visualizar solicitações.</td></tr>';
+    return;
+  }
+
   if (button) {
     button.disabled = true;
     button.dataset.originalContent = button.innerHTML;
@@ -94,9 +99,14 @@ async function loadClientOrders(button = null) {
     tbody.innerHTML = orders.map((order, index) => {
       const normalizedStatus = (order.status || '').toString().toLowerCase();
       const actions = [];
-      actions.push(`<button type="button" class="btn btn-info btn-sm" onclick="openClientOrderDetailModal(${order.id})">Detalhes</button>`);
-      if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
+      if (hasClientPermission('clients.orders.view')) {
+        actions.push(`<button type="button" class="btn btn-info btn-sm" onclick="openClientOrderDetailModal(${order.id})">Detalhes</button>`);
+      }
+      if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus) && hasClientPermission('clients.orders.cancel')) {
         actions.push(`<button type="button" class="btn btn-outline-danger btn-sm" onclick="handleClientOrderAction(${order.id}, 'cancel', this)">Cancelar</button>`);
+      }
+      if (!actions.length) {
+        actions.push('<span class="text-muted">Sem ações</span>');
       }
 
       return `
@@ -135,6 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 async function openClientOrderDetailModal(orderId) {
+  if (!hasClientPermission('clients.orders.view')) {
+    showAlert('warning', 'Você não possui permissão para visualizar detalhes da solicitação.');
+    return;
+  }
+
   const modalLabel = document.getElementById('clientOrderDetailModalLabel');
   const clientField = document.getElementById('clientOrderDetailClient');
   const statusField = document.getElementById('clientOrderDetailStatus');
@@ -188,6 +203,11 @@ async function openClientOrderDetailModal(orderId) {
 }
 
 async function handleClientOrderAction(orderId, action, button) {
+  if (!hasClientPermission('clients.orders.cancel')) {
+    showAlert('warning', 'Você não possui permissão para cancelar solicitações.');
+    return;
+  }
+
   if (!button) button = document.createElement('button');
   setButtonLoading(button, true);
   try {

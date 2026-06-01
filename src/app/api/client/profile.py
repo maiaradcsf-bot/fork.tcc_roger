@@ -4,12 +4,13 @@ from werkzeug.utils import secure_filename
 
 from app.api.client import client_bp
 from flask import jsonify, request
-from app.api.utils import client_required, get_active_products, normalize_order_status, UPLOAD_FOLDER, allowed_file
+from app.api.utils import client_required, client_permission_required, get_active_products, normalize_order_status, UPLOAD_FOLDER, allowed_file
 from app.models.products import Product
 from app.models.status_enums import OrderStatus
 
 
 @client_bp.route('/profile', methods=['GET'])
+@client_permission_required('clients.profile.view')
 def client_profile():
     client, error, status = client_required()
     if error:
@@ -32,7 +33,22 @@ def client_profile():
     })
 
 
+@client_bp.route('/me', methods=['GET'])
+def client_me():
+    client, error, status = client_required()
+    if error:
+        return error, status
+    return jsonify({
+        'id': client.id,
+        'name': client.name,
+        'email': client.email,
+        'rules': [{'id': rule.id, 'name': rule.name} for rule in client.rules],
+        'permissions': client.get_permission_names(),
+    })
+
+
 @client_bp.route('/upload', methods=['POST'])
+@client_permission_required('clients.profile.edit')
 def client_upload():
     client, error, status = client_required()
     if error:
@@ -58,6 +74,7 @@ def client_upload():
 
 
 @client_bp.route('/profile', methods=['PUT'])
+@client_permission_required('clients.profile.edit')
 def update_client_profile():
     client, error, status = client_required()
     if error:
@@ -77,6 +94,7 @@ def update_client_profile():
 
 
 @client_bp.route('/summary', methods=['GET'])
+@client_permission_required('clients.orders.list')
 def client_summary():
     client, error, status = client_required()
     if error:

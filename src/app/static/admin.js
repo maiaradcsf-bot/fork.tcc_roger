@@ -41,6 +41,7 @@ let settingsUsersCache = [];
 let settingsPermissionsCache = [];
 let settingsProfilesCache = [];
 let pendingOrderAction = null;
+let adminPermissions = [];
 
 logoutButton?.addEventListener('click', handleLogout);
 
@@ -121,6 +122,32 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function hasAdminPermission(permissionName) {
+  if (!permissionName) return false;
+  const requiredPermissions = permissionName.split('|').map((name) => name.trim()).filter(Boolean);
+  if (!requiredPermissions.length) return false;
+  return requiredPermissions.some((permission) => adminPermissions.includes(permission));
+}
+
+function showAdminPermissionElements() {
+  document.querySelectorAll('[data-permission]').forEach((element) => {
+    const requiredPermission = element.dataset.permission;
+    if (requiredPermission && !hasAdminPermission(requiredPermission)) {
+      element.remove();
+    }
+  });
+}
+
+async function loadAdminProfile() {
+  try {
+    const profile = await fetchJson('/me');
+    adminPermissions = Array.isArray(profile.permissions) ? profile.permissions : [];
+    showAdminPermissionElements();
+  } catch (error) {
+    console.warn('Não foi possível carregar permissões de administrador:', error.message);
+  }
 }
 
 function handleLogout() {
@@ -306,13 +333,23 @@ async function loadOrders(button = null) {
         const normalizedStatus = (order.status || '').toString().toLowerCase();
         const actionButtons = [];
         if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
-          actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${order.id}, 'approve', this)">Aprovar</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-danger" onclick="openOrderActionConfirm(${order.id}, 'reject', this)">Rejeitar</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+          if (hasAdminPermission('admin.orders.approve')) {
+            actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${order.id}, 'approve', this)">Aprovar</button>`);
+          }
+          if (hasAdminPermission('admin.orders.reject')) {
+            actionButtons.push(`<button type="button" class="btn btn-danger" onclick="openOrderActionConfirm(${order.id}, 'reject', this)">Rejeitar</button>`);
+          }
+          if (hasAdminPermission('admin.orders.cancel')) {
+            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+          }
         }
         if (['approved', 'aprovado'].includes(normalizedStatus)) {
-          actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${order.id}, 'finish', this)">Retirado</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+          if (hasAdminPermission('admin.orders.approve')) {
+            actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${order.id}, 'finish', this)">Retirado</button>`);
+          }
+          if (hasAdminPermission('admin.orders.cancel')) {
+            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+          }
         }
 
         return `
@@ -511,8 +548,8 @@ async function loadCategories(button = null) {
           <td>${category.parent_id ? parentName : ''}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${category.id})">Editar</button>
-              <button type="button" class="btn btn-outline-danger" onclick='deleteCategory(${category.id}, ${JSON.stringify(category.name)})'>Excluir</button>
+              ${hasAdminPermission('admin.categories.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${category.id})">Editar</button>` : ''}
+              ${hasAdminPermission('admin.categories.delete') ? `<button type="button" class="btn btn-outline-danger" onclick='deleteCategory(${category.id}, ${JSON.stringify(category.name)})'>Excluir</button>` : ''}
             </div>
           </td>
         </tr>
@@ -567,8 +604,8 @@ async function loadProducts(button = null) {
                 <td>${product.max_stock ?? '—'}</td>
                 <td class="text-center">
                   <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>
-                    <button type="button" class="btn btn-outline-danger" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>Excluir</button>
+                    ${hasAdminPermission('admin.products.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>` : ''}
+                    ${hasAdminPermission('admin.products.delete') ? `<button type="button" class="btn btn-outline-danger" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>Excluir</button>` : ''}
                   </div>
                 </td>
               </tr>
@@ -786,8 +823,8 @@ async function loadSettingsUsers(button = null) {
             <td>${formatDate(user.created_at)}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-secondary" onclick="openSettingsUserModal('edit', ${user.id})">Editar</button>
-                <button type="button" class="btn btn-outline-danger" onclick="deleteSettingsUser(${user.id})">Excluir</button>
+                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsUserModal('edit', ${user.id})">Editar</button>` : ''}
+                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsUser(${user.id})">Excluir</button>` : ''}
               </div>
             </td>
           </tr>
@@ -832,8 +869,8 @@ async function loadSettingsPermissions(button = null) {
           <td>${permission.description || '—'}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-secondary" onclick="openSettingsPermissionModal('edit', ${permission.id})">Editar</button>
-              <button type="button" class="btn btn-outline-danger" onclick="deleteSettingsPermission(${permission.id})">Excluir</button>
+              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsPermissionModal('edit', ${permission.id})">Editar</button>` : ''}
+              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsPermission(${permission.id})">Excluir</button>` : ''}
             </div>
           </td>
         </tr>
@@ -880,8 +917,8 @@ async function loadSettingsProfiles(button = null) {
             <td>${permissionNames}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-secondary" onclick="openSettingsProfileModal('edit', ${profile.id})">Editar</button>
-                <button type="button" class="btn btn-outline-danger" onclick="deleteSettingsProfile(${profile.id})">Excluir</button>
+                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsProfileModal('edit', ${profile.id})">Editar</button>` : ''}
+                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsProfile(${profile.id})">Excluir</button>` : ''}
               </div>
             </td>
           </tr>
@@ -1710,7 +1747,7 @@ window.openClientDeactivateModal = openClientDeactivateModal;
 window.openClientDetailModal = openClientDetailModal;
 window.openOrderDetailModal = openOrderDetailModal;
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   const refreshOrdersButton = document.getElementById('refreshOrdersButton');
   const refreshCategoriesButton = document.getElementById('refreshCategoriesButton');
   const refreshProductsButton = document.getElementById('refreshProductsButton');
@@ -1761,6 +1798,8 @@ window.addEventListener('DOMContentLoaded', () => {
   settingsUserForm?.addEventListener('submit', saveSettingsUser);
   settingsPermissionForm?.addEventListener('submit', saveSettingsPermission);
   settingsProfileForm?.addEventListener('submit', saveSettingsProfile);
+
+  await loadAdminProfile();
 
   if (summaryOrders || summaryCategories || summaryProducts || summaryClients || summaryPendingOrders || summaryStock) {
     loadDashboardSummary();

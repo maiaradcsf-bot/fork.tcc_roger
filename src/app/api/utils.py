@@ -1,4 +1,5 @@
 import os
+from functools import wraps
 from flask import request, jsonify
 from app.models import db
 from app.models.products import Product
@@ -51,7 +52,7 @@ def get_auth_token():
     return None
 
 
-def client_required():
+def get_client_user():
     token = get_auth_token()
     if not token:
         return None, jsonify({'error': 'Token de autorização é obrigatório'}), 401
@@ -63,13 +64,55 @@ def client_required():
     return client, None, None
 
 
-def admin_required():
+def client_required(permission_name=None):
+    client, error, status = get_client_user()
+    if error:
+        return None, error, status
+    if permission_name and not client.has_permission(permission_name):
+        return None, jsonify({'error': 'Permissão insuficiente'}), 403
+    return client, None, None
+
+
+def get_admin_user():
     token = get_auth_token()
     if not token:
         return None, jsonify({'error': 'Token de autorização é obrigatório'}), 401
     user = User.query.filter_by(auth_token=token).first()
     if not user:
         return None, jsonify({'error': 'Token de administrador inválido'}), 401
-    if not any(getattr(rule, 'name', None) == 'administrator' for rule in getattr(user, 'rules', []) ):
+    if not getattr(user, 'rules', []):
         return None, jsonify({'error': 'Privilégios de administrador são necessários'}), 403
     return user, None, None
+
+
+def admin_required(permission_name=None):
+    user, error, status = get_admin_user()
+    if error:
+        return None, error, status
+    if permission_name and not user.has_permission(permission_name):
+        return None, jsonify({'error': 'Permissão insuficiente'}), 403
+    return user, None, None
+
+
+def permission_required(permission_name):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            user, error, status = admin_required(permission_name)
+            if error:
+                return error, status
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def client_permission_required(permission_name):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            client, error, status = client_required(permission_name)
+            if error:
+                return error, status
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator

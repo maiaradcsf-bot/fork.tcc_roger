@@ -6,14 +6,14 @@
         <p class="text-muted mb-0">Gerencie produtos e avalie o estoque atual.</p>
       </div>
       <div class="btn-group flex-wrap">
-        <button id="newProductButton" class="btn btn-success">
+        <button id="newProductButton" class="btn btn-success" data-permission="admin.products.create">
           <i class="bi bi-plus-lg me-1"></i> Novo produto
         </button>
-        <button id="viewStockMovesButton" class="btn btn-secondary">
+        <button id="viewStockMovesButton" class="btn btn-secondary" data-permission="admin.stock.moves.list">
           <i class="bi bi-archive me-1"></i> Ver movimentações estoque
         </button>
         <!-- Botão de nova movimentação removido daqui; mantenha criação via página de Movimentações -->
-        <button id="refreshProductsButton" class="btn btn-outline-primary">
+        <button id="refreshProductsButton" class="btn btn-outline-primary" data-permission="admin.products.list">
           <i class="bi bi-arrow-repeat me-1"></i> Atualizar produtos
         </button>
       </div>

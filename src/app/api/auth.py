@@ -90,9 +90,9 @@ def client_register():
     db.session.add(client)
     db.session.flush()
 
-    # vincular cliente à regra 'client' caso exista
+    # vincular cliente à regra padrão de cliente ('cliente' ou 'client') caso exista
     try:
-        client_rule = Rule.query.filter_by(name='client').first()
+        client_rule = Rule.query.filter(Rule.name.in_(['client', 'cliente'])).first()
         if client_rule:
             assoc = ClientRule(client_id=client.id, rule_id=client_rule.id)
             db.session.add(assoc)

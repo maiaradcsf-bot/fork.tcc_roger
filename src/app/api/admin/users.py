@@ -1,12 +1,27 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required
+from app.api.utils import admin_required, permission_required
 from app.models.users import User
 from app.models.rules import Rule
 from app.models import db
 
 
+@admin_bp.route('/me', methods=['GET'])
+def admin_me():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    return jsonify({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'rules': [{'id': r.id, 'name': r.name} for r in user.rules],
+        'permissions': user.get_permission_names(),
+    })
+
+
 @admin_bp.route('/users', methods=['GET'])
+@permission_required('admin.settings.users.manage')
 def admin_list_users():
     user, error, status = admin_required()
     if error:
@@ -22,8 +37,9 @@ def admin_list_users():
 
 
 @admin_bp.route('/users', methods=['POST'])
+@permission_required('admin.settings.users.manage')
 def admin_create_user():
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.users.manage')
     if error:
         return error, status
     data = request.get_json() or {}
@@ -46,8 +62,9 @@ def admin_create_user():
 
 
 @admin_bp.route('/users/<int:user_id>', methods=['PUT'])
+@permission_required('admin.settings.users.manage')
 def admin_update_user(user_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.users.manage')
     if error:
         return error, status
     user_obj = User.query.get(user_id)
@@ -71,8 +88,9 @@ def admin_update_user(user_id):
 
 
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@permission_required('admin.settings.users.manage')
 def admin_delete_user(user_id):
-    user, error, status = admin_required()
+    user, error, status = admin_required('admin.settings.users.manage')
     if error:
         return error, status
     user_obj = User.query.get(user_id)

@@ -2,11 +2,40 @@
 let clientProductsCache = [];
 let clientOpenCart = null;
 let clientProfilePhotoURL = '';
+let clientPermissions = [];
 let clientOrdersChartRange = 7;
 const OPEN_CART_STATUSES = ['open'];
 
 function getClientToken() {
   return localStorage.getItem('client_token');
+}
+
+function hasClientPermission(permissionName) {
+  return clientPermissions.includes(permissionName);
+}
+
+function showClientPermissionElements() {
+  document.querySelectorAll('[data-permission]').forEach((el) => {
+    const permission = el.dataset.permission;
+    if (!permission || !hasClientPermission(permission)) {
+      el.remove();
+    }
+  });
+}
+
+async function loadClientPermissions() {
+  const token = getClientToken();
+  if (!token) return;
+
+  try {
+    const resp = await fetch('/api/client/me', { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    clientPermissions = Array.isArray(data.permissions) ? data.permissions : [];
+    showClientPermissionElements();
+  } catch (err) {
+    console.warn('Não foi possível carregar permissões do cliente', err);
+  }
 }
 
 function showAlert(type, message) {
@@ -446,10 +475,24 @@ async function loadProducts() {
       return;
     }
 
+    const canViewProduct = hasClientPermission('clients.products.view');
+    const canRequestProduct = hasClientPermission('clients.products.request');
+
     tableBody.innerHTML = products.map((p, index) => {
       const img = p.photo_path ? `<img src="${escapeHtml(p.photo_path)}" alt="${escapeHtml(p.name)}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : '';
       const stock = p.stock ?? 0;
       const categoriesText = Array.isArray(p.categories) && p.categories.length ? p.categories.join(', ') : '—';
+      const actionButtons = [];
+      if (canViewProduct) {
+        actionButtons.push(`<button type="button" class="btn btn-outline-secondary" onclick="visualizarProduto(${p.id})">Visualizar</button>`);
+      }
+      if (canRequestProduct) {
+        actionButtons.push(`<button type="button" class="btn btn-primary" onclick="adicionarRequisicao(${p.id})" ${stock <= 0 ? 'disabled' : ''}>Adicionar requisição</button>`);
+      }
+      if (!actionButtons.length) {
+        actionButtons.push('<span class="text-muted">Sem ações</span>');
+      }
+
       return `
         <tr>
           <th scope="row">${index + 1}</th>
@@ -462,8 +505,7 @@ async function loadProducts() {
           <td>${stock}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-secondary" onclick="visualizarProduto(${p.id})">Visualizar</button>
-              <button type="button" class="btn btn-primary" onclick="adicionarRequisicao(${p.id})" ${stock <= 0 ? 'disabled' : ''}>Adicionar requisição</button>
+              ${actionButtons.join('')}
             </div>
           </td>
         </tr>
@@ -500,7 +542,13 @@ window.visualizarProduto = function(productId) {
 
   const addButton = document.getElementById('clientProductDetailAddButton');
   if (addButton) {
-    addButton.onclick = () => adicionarRequisicao(product.id);
+    if (hasClientPermission('clients.products.request')) {
+      addButton.onclick = () => adicionarRequisicao(product.id);
+      addButton.classList.remove('d-none');
+      addButton.disabled = product.stock <= 0;
+    } else {
+      addButton.classList.add('d-none');
+    }
   }
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById('clientProductDetailModal')).show();
@@ -655,6 +703,16 @@ function renderCartSummary(cart) {
   const confirmButton = document.getElementById('confirmClientCartButton');
   if (!body || !totalEl || !confirmButton) return;
 
+  const canManageCart = hasClientPermission('clients.cart.manage');
+  if (!canManageCart) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Sem permissão para gerenciar o carrinho.</td></tr>';
+    totalEl.textContent = formatPrice(0);
+    confirmButton.disabled = true;
+    confirmButton.classList.add('d-none');
+    return;
+  }
+
+  confirmButton.classList.remove('d-none');
   const items = cart?.items || [];
   if (!items.length) {
     body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Carrinho vazio.</td></tr>';
@@ -781,6 +839,11 @@ window.openClientCartSummary = async function() {
     return;
   }
 
+  if (!hasClientPermission('clients.cart.manage')) {
+    showAlert('warning', 'Você não possui permissão para acessar o carrinho.');
+    return;
+  }
+
   try {
     await refreshCartSummary(token);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('clientCartModal')).show();
@@ -792,6 +855,10 @@ window.openClientCartSummary = async function() {
 window.confirmClientCart = async function() {
   const token = getClientToken();
   if (!token || !clientOpenCart) return;
+  if (!hasClientPermission('clients.cart.manage')) {
+    showAlert('warning', 'Permissão de carrinho necessária para confirmar a solicitação.');
+    return;
+  }
 
   try {
     const reason = document.getElementById('clientCartReason') ? document.getElementById('clientCartReason').value.trim() : '';
@@ -827,7 +894,8 @@ window.clientLogout = function() {
   window.location.href = '/';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadClientPermissions();
   loadSummary();
   loadProducts();
   fetchOpenCart().catch(() => updateCartButton());
