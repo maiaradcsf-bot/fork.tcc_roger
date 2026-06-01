@@ -4,6 +4,8 @@ from app.api.utils import admin_required, get_product_by_id
 from app.models.stock_moves import StockMove
 from app.models.stock import Stock
 from app.models import db
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 
 
 @admin_bp.route('/stock/moves', methods=['GET'])
@@ -11,7 +13,28 @@ def admin_list_stock_moves():
     user, error, status = admin_required()
     if error:
         return error, status
-    stock_moves = StockMove.query.order_by(StockMove.created_at.desc()).all()
+    # optional filters: start_date, end_date (YYYY-MM-DD or ISO), product_id
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    product_id = request.args.get('product_id')
+
+    query = StockMove.query
+    if product_id:
+        # join to stock to filter by product
+        query = query.join(Stock).filter(Stock.product_id == int(product_id))
+
+    try:
+        if start_date:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.filter(StockMove.created_at >= start_dt)
+        if end_date:
+            # include end date whole day by adding one day and using <
+            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+            query = query.filter(StockMove.created_at < end_dt)
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD or ISO format.'}), 400
+
+    stock_moves = query.order_by(StockMove.created_at.desc()).all()
     return jsonify([{
         'id': move.id,
         'stock_id': move.stock_id,

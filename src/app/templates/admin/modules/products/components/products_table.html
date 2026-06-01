@@ -9,9 +9,10 @@
         <button id="newProductButton" class="btn btn-success">
           <i class="bi bi-plus-lg me-1"></i> Novo produto
         </button>
-        <button id="newStockMoveButton" class="btn btn-warning text-dark">
-          <i class="bi bi-arrow-up-right-square me-1"></i> Nova movimentação
+        <button id="viewStockMovesButton" class="btn btn-secondary">
+          <i class="bi bi-archive me-1"></i> Ver movimentações estoque
         </button>
+        <!-- Botão de nova movimentação removido daqui; mantenha criação via página de Movimentações -->
         <button id="refreshProductsButton" class="btn btn-outline-primary">
           <i class="bi bi-arrow-repeat me-1"></i> Atualizar produtos
         </button>
@@ -24,6 +25,7 @@
           <tr>
             <th>#</th>
             <th>Produto</th>
+            <th>Categoria</th>
             <th>Preço</th>
             <th>Estoque</th>
             <th class="text-center">Ações</th>
@@ -31,29 +33,12 @@
         </thead>
         <tbody id="productsTableBody" class="table-placeholder">
           <tr>
-            <td colspan="5" class="text-center py-5 text-muted">Carregando produtos...</td>
+            <td colspan="6" class="text-center py-5 text-muted">Carregando produtos...</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="table-responsive">
-      <h3 class="h6 mb-3">Movimentações de Estoque</h3>
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Produto</th>
-            <th>Quantidade</th>
-            <th>Motivo</th>
-            <th>Data</th>
-          </tr>
-        </thead>
-        <tbody id="stockMovesTableBody" class="table-placeholder">
-          <tr>
-            <td colspan="4" class="text-center py-5 text-muted">Carregando movimentações...</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- Movimentações de Estoque movidas para sua própria página -->
   </div>
 </section>

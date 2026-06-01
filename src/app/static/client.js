@@ -282,7 +282,7 @@ function updateCartButton() {
 async function loadProducts() {
   const tableBody = document.getElementById('clientProductsTableBody');
   if (!tableBody) return;
-  tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">Carregando produtos...</td></tr>';
+  tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">Carregando produtos...</td></tr>';
 
   try {
     const token = getClientToken();
@@ -292,13 +292,14 @@ async function loadProducts() {
     clientProductsCache = Array.isArray(products) ? products : [];
 
     if (!Array.isArray(products) || products.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">Nenhum produto disponível.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">Nenhum produto disponível.</td></tr>';
       return;
     }
 
     tableBody.innerHTML = products.map((p, index) => {
       const img = p.photo_path ? `<img src="${escapeHtml(p.photo_path)}" alt="${escapeHtml(p.name)}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : '';
       const stock = p.stock ?? 0;
+      const categoriesText = Array.isArray(p.categories) && p.categories.length ? p.categories.join(', ') : '—';
       return `
         <tr>
           <th scope="row">${index + 1}</th>
@@ -306,6 +307,7 @@ async function loadProducts() {
             ${img}
             ${escapeHtml(p.name || '—')}
           </td>
+          <td>${escapeHtml(categoriesText)}</td>
           <td>${formatPrice(p.price)}</td>
           <td>${stock}</td>
           <td class="text-center">
@@ -318,7 +320,7 @@ async function loadProducts() {
       `;
     }).join('');
   } catch (err) {
-    tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-danger">Erro ao carregar produtos: ${escapeHtml(err.message)}</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">Erro ao carregar produtos: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 

@@ -31,6 +31,11 @@ def categories():
 def products():
     return render_template("admin/modules/products/index.html", active_page='products')
 
+
+@views_bp.route('/admin/products/stock-moves')
+def products_stock_moves():
+    return render_template('admin/modules/products/stock_moves.html', active_page='stock_moves')
+
 @views_bp.route("/admin/clients")
 def clients():
     return render_template("admin/modules/clients/index.html", active_page='clients')

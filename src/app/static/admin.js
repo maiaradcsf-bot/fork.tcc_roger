@@ -46,10 +46,79 @@ function getAuthToken() {
   return localStorage.getItem('admin_token');
 }
 
+function setStockFilterRange(days, shouldLoad = false) {
+  const stockStartDate = document.getElementById('stockStartDate');
+  const stockEndDate = document.getElementById('stockEndDate');
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const startDateObj = new Date();
+  startDateObj.setDate(startDateObj.getDate() - days);
+  const start = startDateObj.toISOString().slice(0, 10);
+  if (stockStartDate) stockStartDate.value = start;
+  if (stockEndDate) stockEndDate.value = end;
+  if (shouldLoad) {
+    loadStockMoves();
+  }
+}
+
+async function loadStockMoves(button = null) {
+  const tableBody = document.getElementById('stockMovesTableBody');
+  if (!tableBody) return;
+  renderTablePlaceholder(tableBody, 4, 'Carregando movimentações...');
+  setLoadingState(button, true);
+
+  try {
+    const params = [];
+    const start = document.getElementById('stockStartDate')?.value;
+    const end = document.getElementById('stockEndDate')?.value;
+    if (start) params.push(`start_date=${encodeURIComponent(start)}`);
+    if (end) params.push(`end_date=${encodeURIComponent(end)}`);
+    const url = `/stock/moves${params.length ? '?' + params.join('&') : ''}`;
+    const stockMoves = await fetchJson(url);
+    if (Array.isArray(stockMoves) && stockMoves.length > 0) {
+      tableBody.innerHTML = stockMoves
+        .map((move) => `
+          <tr>
+            <td>${move.product_name || move.product_id || move.stock_id || '—'}</td>
+            <td>${move.quantity_change || '—'}</td>
+            <td>${move.reason || '—'}</td>
+            <td>${formatDate(move.created_at)}</td>
+          </tr>
+        `)
+        .join('');
+    } else {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-5 text-muted">Nenhuma movimentação de estoque encontrada.</td>
+        </tr>
+      `;
+    }
+  } catch (error) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
+      </tr>
+    `;
+    showAlert('danger', `Erro ao carregar movimentações: ${error.message}`);
+  } finally {
+    setLoadingState(button, false);
+  }
+}
+
 function buildAuthHeader() {
   const token = getAuthToken();
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
+}
+
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function handleLogout() {
@@ -319,17 +388,17 @@ async function openOrderDetailModal(orderId) {
 
 async function loadCategories(button = null) {
   if (!categoriesTableBody) return;
-  renderTablePlaceholder(categoriesTableBody, 5, 'Carregando categorias...');
+  renderTablePlaceholder(categoriesTableBody, 6, 'Carregando categorias...');
   setLoadingState(button, true);
 
   try {
     const categories = await fetchJson('/categories');
     if (!Array.isArray(categories) || categories.length === 0) {
       categoriesTableBody.innerHTML = `
-        <tr>
-          <td colspan="5" class="text-center py-5 text-muted">Nenhuma categoria encontrada.</td>
-        </tr>
-      `;
+          <tr>
+            <td colspan="6" class="text-center py-5 text-muted">Nenhuma categoria encontrada.</td>
+          </tr>
+        `;
       return;
     }
 
@@ -345,8 +414,9 @@ async function loadCategories(button = null) {
         <tr>
           <th scope="row">${index + 1}</th>
           <td>${category.name || '—'}</td>
+          <td>${category.parent_id ? 'Subcategoria' : 'Categoria'}</td>
           <td>${category.description || '—'}</td>
-          <td>${parentName}</td>
+          <td>${category.parent_id ? parentName : ''}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
               <button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${category.id})">Editar</button>
@@ -360,7 +430,7 @@ async function loadCategories(button = null) {
   } catch (error) {
     categoriesTableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar categorias: ${error.message}</td>
+        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar categorias: ${error.message}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar categorias: ${error.message}`);
@@ -371,7 +441,7 @@ async function loadCategories(button = null) {
 
 async function loadProducts(button = null) {
   if (!productsTableBody && !stockMovesTableBody) return;
-  if (productsTableBody) renderTablePlaceholder(productsTableBody, 5, 'Carregando produtos...');
+  if (productsTableBody) renderTablePlaceholder(productsTableBody, 6, 'Carregando produtos...');
   if (stockMovesTableBody) renderTablePlaceholder(stockMovesTableBody, 4, 'Carregando movimentações...');
   setLoadingState(button, true);
 
@@ -381,53 +451,39 @@ async function loadProducts(button = null) {
       if (!Array.isArray(products) || products.length === 0) {
         productsTableBody.innerHTML = `
           <tr>
-            <td colspan="5" class="text-center py-5 text-muted">Nenhum produto encontrado.</td>
+            <td colspan="6" class="text-center py-5 text-muted">Nenhum produto encontrado.</td>
           </tr>
         `;
       } else {
         productsTableBody.innerHTML = products
-          .map((product, index) => `
-            <tr>
-              <th scope="row">${index + 1}</th>
-              <td>
-                ${product.photo_path ? `<img src="${product.photo_path}" alt="${product.name}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
-                ${product.name || '—'}
-              </td>
-              <td>R$ ${Number(product.price || 0).toFixed(2)}</td>
-              <td>${product.stock ?? '—'}</td>
-              <td class="text-center">
-                <div class="btn-group btn-group-sm" role="group">
-                  <button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>
-                  <button type="button" class="btn btn-outline-danger" onclick="deleteProduct(${product.id})">Excluir</button>
-                </div>
-              </td>
-            </tr>
-          `)
+          .map((product, index) => {
+            const categoriesText = Array.isArray(product.categories) && product.categories.length
+              ? product.categories.map((cat) => cat.path || cat.name).join(', ')
+              : '—';
+            return `
+              <tr>
+                <th scope="row">${index + 1}</th>
+                <td>
+                  ${product.photo_path ? `<img src="${product.photo_path}" alt="${product.name}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
+                  ${product.name || '—'}
+                </td>
+                <td>${escapeHtml(categoriesText)}</td>
+                <td>R$ ${Number(product.price || 0).toFixed(2)}</td>
+                <td>${product.stock ?? '—'}</td>
+                <td class="text-center">
+                  <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteProduct(${product.id})">Excluir</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          })
           .join('');
       }
     }
 
-    if (stockMovesTableBody) {
-      const stockMoves = await fetchJson('/stock/moves');
-      if (Array.isArray(stockMoves) && stockMoves.length > 0) {
-        stockMovesTableBody.innerHTML = stockMoves
-          .map((move) => `
-            <tr>
-              <td>${move.product_name || move.product_id || move.stock_id || '—'}</td>
-              <td>${move.quantity_change || '—'}</td>
-              <td>${move.reason || '—'}</td>
-              <td>${formatDate(move.created_at)}</td>
-            </tr>
-          `)
-          .join('');
-      } else {
-        stockMovesTableBody.innerHTML = `
-          <tr>
-            <td colspan="4" class="text-center py-5 text-muted">Nenhuma movimentação de estoque encontrada.</td>
-          </tr>
-        `;
-      }
-    }
+    // stock moves rendering moved to separate page; loadStockMoves handles its rendering
   } catch (error) {
     if (productsTableBody) {
       productsTableBody.innerHTML = `
@@ -1049,7 +1105,10 @@ async function loadCategoryOptions(selectedId = null, currentCategoryId = null) 
     const categories = await fetchJson('/categories');
     if (!Array.isArray(categories)) return;
 
-    categories.forEach((category) => {
+    // Only show top-level categories (no parent) as possible parents
+    const parentCategories = categories.filter((c) => c.parent_id === null || c.parent_id === undefined || c.parent_id === 0 || c.parent_id === '');
+    parentCategories.forEach((category) => {
+      // avoid allowing a category to be parent of itself
       if (currentCategoryId && category.id === currentCategoryId) {
         return;
       }
@@ -1063,6 +1122,39 @@ async function loadCategoryOptions(selectedId = null, currentCategoryId = null) 
     });
   } catch (error) {
     showAlert('danger', `Erro ao carregar categorias para seleção: ${error.message}`);
+  }
+}
+
+async function loadProductCategoryOptions(selectedIds = []) {
+  const productCategoriesSelect = document.getElementById('productCategories');
+  if (!productCategoriesSelect) return;
+
+  try {
+    const categories = await fetchJson('/categories');
+    if (!Array.isArray(categories)) {
+      productCategoriesSelect.innerHTML = '<option disabled>Falha ao carregar categorias</option>';
+      return;
+    }
+
+    const sortedCategories = categories.slice().sort((a, b) => {
+      const nameA = ((a.parent_name || '') + a.name).toLowerCase();
+      const nameB = ((b.parent_name || '') + b.name).toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    productCategoriesSelect.innerHTML = '';
+    sortedCategories.forEach((category) => {
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = category.parent_name ? `${category.parent_name} / ${category.name}` : category.name;
+      if (selectedIds.includes(Number(category.id))) {
+        option.selected = true;
+      }
+      productCategoriesSelect.append(option);
+    });
+  } catch (error) {
+    productCategoriesSelect.innerHTML = '<option disabled>Erro ao carregar categorias</option>';
+    console.error('Erro ao carregar opções de categorias:', error);
   }
 }
 
@@ -1173,6 +1265,8 @@ async function openProductModal(mode, productId = null) {
   productPhotoURL = '';
   photoPreview.innerHTML = '';
 
+  const categorySelect = document.getElementById('productCategories');
+
   if (mode === 'edit' && productId !== null) {
     const products = await fetchJson('/products');
     const product = products.find((item) => item.id === productId);
@@ -1187,10 +1281,13 @@ async function openProductModal(mode, productId = null) {
     priceField.value = product.price ?? 0;
     photoField.value = '';
     stockField.value = product.stock ?? 0;
+    // esconder campo de estoque no modo de edição (estoque inicial só ao criar)
+    if (stockField && stockField.parentElement) stockField.parentElement.style.display = 'none';
     productPhotoURL = product.photo_path || '';
     if (product.photo_path) {
       photoPreview.innerHTML = `<img src="${product.photo_path}" alt="Prévia" style="height: 80px; width: auto; border-radius: 4px;">`;
     }
+    await loadProductCategoryOptions(Array.isArray(product.category_ids) ? product.category_ids : (Array.isArray(product.categories) ? product.categories.map((cat) => cat.id) : []));
   } else {
     modalTitle.textContent = 'Novo Produto';
     idField.value = '';
@@ -1199,6 +1296,12 @@ async function openProductModal(mode, productId = null) {
     priceField.value = 0;
     photoField.value = '';
     stockField.value = 0;
+    // mostrar campo de estoque no modo de criação
+    if (stockField && stockField.parentElement) stockField.parentElement.style.display = '';
+    if (categorySelect) {
+      categorySelect.innerHTML = '';
+    }
+    await loadProductCategoryOptions();
   }
 
   openModal('productModal');
@@ -1224,7 +1327,7 @@ document.addEventListener('change', async (e) => {
     try {
       const response = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` },
+        headers: { ...buildAuthHeader() },
         body: formData
       });
       
@@ -1244,7 +1347,6 @@ async function saveProduct(event) {
   const name = document.getElementById('productName').value.trim();
   const description = document.getElementById('productDescription').value.trim();
   const price = Number(document.getElementById('productPrice').value || 0);
-  const stockValue = Number(document.getElementById('productStock').value || 0);
   const submitButton = event.submitter || document.querySelector('#productForm button[type="submit"]');
 
   if (!name) {
@@ -1255,32 +1357,22 @@ async function saveProduct(event) {
   setLoadingState(submitButton, true);
 
   try {
-    const payload = { name, description, price, photo_path: productPhotoURL };
+    const categorySelect = document.getElementById('productCategories');
+    const categoryIds = categorySelect
+      ? Array.from(categorySelect.selectedOptions).map((option) => Number(option.value))
+      : [];
+    const payload = { name, description, price, photo_path: productPhotoURL, category_ids: categoryIds };
     let createdProductId = null;
-    let oldStock = 0;
 
     if (productId) {
-      const products = await fetchJson('/products');
-      const oldProduct = products.find((p) => p.id === Number(productId));
-      oldStock = oldProduct?.stock ?? 0;
-
       await fetchJson(`/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       showAlert('success', 'Produto atualizado com sucesso.');
-
-      if (oldStock !== stockValue) {
-        const quantityDiff = stockValue - oldStock;
-        const moveReason = `Ajuste de inventário (${quantityDiff > 0 ? '+' : ''}${quantityDiff})`;
-        await fetchJson('/stock/moves', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ product_id: Number(productId), quantity_change: quantityDiff, reason: moveReason }),
-        });
-      }
     } else {
+      const stockValue = Number(document.getElementById('productStock').value || 0);
       const createResponse = await fetchJson('/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1362,17 +1454,16 @@ async function saveStockMove(event) {
     });
     showAlert('success', 'Movimentação de estoque registrada com sucesso.');
     bootstrap.Modal.getInstance(document.getElementById('stockMoveModal'))?.hide();
-    await loadProducts();
+    if (stockMovesTableBody) {
+      await loadStockMoves();
+    } else {
+      await loadProducts();
+    }
   } catch (error) {
     showAlert('danger', `Erro ao salvar movimentação: ${error.message}`);
   } finally {
     setLoadingState(submitButton, false);
   }
-}
-
-async function loadStockMoves() {
-  if (!stockMovesTableBody) return;
-  await loadProducts();
 }
 
 function openClientDeactivateModal(clientId, clientName, clientActive) {
@@ -1469,6 +1560,14 @@ window.addEventListener('DOMContentLoaded', () => {
   const newCategoryButton = document.getElementById('newCategoryButton');
   const newProductButton = document.getElementById('newProductButton');
   const newStockMoveButton = document.getElementById('newStockMoveButton');
+  const viewStockMovesButton = document.getElementById('viewStockMovesButton');
+  const refreshStockMovesButton = document.getElementById('refreshStockMovesButton');
+  const backToProductsButton = document.getElementById('backToProductsButton');
+  const filterStockMovesButton = document.getElementById('filterStockMovesButton');
+  const quick7DaysButton = document.getElementById('quick7DaysButton');
+  const quick90DaysButton = document.getElementById('quick90DaysButton');
+  const stockStartDate = document.getElementById('stockStartDate');
+  const stockEndDate = document.getElementById('stockEndDate');
   const categoryForm = document.getElementById('categoryForm');
   const productForm = document.getElementById('productForm');
   const stockMoveForm = document.getElementById('stockMoveForm');
@@ -1481,6 +1580,12 @@ window.addEventListener('DOMContentLoaded', () => {
   newCategoryButton?.addEventListener('click', () => openCategoryModal('new'));
   newProductButton?.addEventListener('click', () => openProductModal('new'));
   newStockMoveButton?.addEventListener('click', openStockMoveModal);
+  viewStockMovesButton?.addEventListener('click', () => { window.location.href = '/admin/products/stock-moves'; });
+  refreshStockMovesButton?.addEventListener('click', () => loadStockMoves(refreshStockMovesButton));
+  backToProductsButton?.addEventListener('click', () => { window.location.href = '/admin/products'; });
+  filterStockMovesButton?.addEventListener('click', () => loadStockMoves(filterStockMovesButton));
+  quick7DaysButton?.addEventListener('click', () => setStockFilterRange(7, true));
+  quick90DaysButton?.addEventListener('click', () => setStockFilterRange(90, true));
   categoryForm?.addEventListener('submit', saveCategory);
   productForm?.addEventListener('submit', saveProduct);
   stockMoveForm?.addEventListener('submit', saveStockMove);
@@ -1501,7 +1606,22 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (ordersTableBody) loadOrders();
   if (categoriesTableBody) loadCategories();
-  if (productsTableBody || stockMovesTableBody) loadProducts();
+  if (productsTableBody) loadProducts();
+  if (stockMovesTableBody) {
+    // default filter: últimos 30 dias
+    try {
+      const today = new Date();
+      const end = today.toISOString().slice(0, 10);
+      const startDateObj = new Date();
+      startDateObj.setDate(startDateObj.getDate() - 30);
+      const start = startDateObj.toISOString().slice(0, 10);
+      if (stockStartDate) stockStartDate.value = start;
+      if (stockEndDate) stockEndDate.value = end;
+    } catch (e) {
+      // ignore date calc errors
+    }
+    loadStockMoves();
+  }
   if (clientsTableBody) loadClients();
   if (settingsUsersTableBody) loadSettingsUsers();
   if (settingsPermissionsTableBody) loadSettingsPermissions();

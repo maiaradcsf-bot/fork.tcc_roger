@@ -70,6 +70,9 @@ logs/
 # Docker volumes
 .docker/mysql/*
 !.docker/mysql/.gitkeep
+.docker/imagens/*
+!.docker/imagens/.gitkeep
+!.docker/imagens/.gitignore
 
 # Coverage
 htmlcov/

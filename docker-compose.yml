@@ -23,6 +23,7 @@ services:
     volumes:
       - ./src:/app
       - ./.docker/requirements.txt:/tmp/requirements.txt:ro
+      - vol_images:/app/static/uploads
     environment:
       - FLASK_APP=${FLASK_APP}
       - FLASK_ENV=${FLASK_ENV}
@@ -79,6 +80,13 @@ volumes:
       type: none
       o: bind
       device: ./.docker/mysql
+  vol_images:
+    name: imagens_tcc
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./.docker/imagens
 
 networks:
   network_tcc:
