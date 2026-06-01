@@ -33,6 +33,9 @@ def admin_list_products():
         'name': product.name,
         'description': product.description,
         'price': float(product.price) if product.price else 0.0,
+        'barcode': product.barcode,
+        'min_stock': product.min_stock,
+        'max_stock': product.max_stock,
         'photo_path': product.photo_path,
         'stock': product.stock.quantity if product.stock else 0,
         'category_ids': [category.id for category in product.categories],
@@ -53,11 +56,37 @@ def admin_create_product():
         if len(categories) != len(set(category_ids)):
             return jsonify({'error': 'IDs de categoria inválidos'}), 400
 
+    barcode = data.get('barcode')
+    if barcode:
+        barcode = barcode.strip() or None
+        if barcode and Product.query.filter_by(barcode=barcode).first():
+            return jsonify({'error': 'Código de barras já existe'}), 409
+
+    min_stock = data.get('min_stock')
+    max_stock = data.get('max_stock')
+    try:
+        min_stock = int(min_stock) if min_stock is not None and min_stock != '' else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'min_stock deve ser um número inteiro válido'}), 400
+    try:
+        max_stock = int(max_stock) if max_stock is not None and max_stock != '' else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'max_stock deve ser um número inteiro válido'}), 400
+    if min_stock is not None and min_stock < 0:
+        return jsonify({'error': 'min_stock não pode ser negativo'}), 400
+    if max_stock is not None and max_stock < 0:
+        return jsonify({'error': 'max_stock não pode ser negativo'}), 400
+    if min_stock is not None and max_stock is not None and max_stock < min_stock:
+        return jsonify({'error': 'max_stock não pode ser menor que min_stock'}), 400
+
     product = Product(
         name=data.get('name'),
         description=data.get('description'),
         price=data.get('price', 0),
-        photo_path=data.get('photo_path')
+        photo_path=data.get('photo_path'),
+        barcode=barcode,
+        min_stock=min_stock,
+        max_stock=max_stock
     )
     product.categories = categories
     db.session.add(product)
@@ -113,10 +142,36 @@ def admin_update_product(product_id):
             return jsonify({'error': 'IDs de categoria inválidos'}), 400
         product.categories = categories
 
+    barcode = data.get('barcode')
+    if barcode:
+        barcode = barcode.strip() or None
+        if barcode and Product.query.filter(Product.barcode == barcode, Product.id != product_id).first():
+            return jsonify({'error': 'Código de barras já existe'}), 409
+
+    min_stock = data.get('min_stock')
+    max_stock = data.get('max_stock')
+    try:
+        min_stock = int(min_stock) if min_stock is not None and min_stock != '' else product.min_stock
+    except (TypeError, ValueError):
+        return jsonify({'error': 'min_stock deve ser um número inteiro válido'}), 400
+    try:
+        max_stock = int(max_stock) if max_stock is not None and max_stock != '' else product.max_stock
+    except (TypeError, ValueError):
+        return jsonify({'error': 'max_stock deve ser um número inteiro válido'}), 400
+    if min_stock is not None and min_stock < 0:
+        return jsonify({'error': 'min_stock não pode ser negativo'}), 400
+    if max_stock is not None and max_stock < 0:
+        return jsonify({'error': 'max_stock não pode ser negativo'}), 400
+    if min_stock is not None and max_stock is not None and max_stock < min_stock:
+        return jsonify({'error': 'max_stock não pode ser menor que min_stock'}), 400
+
     product.name = data.get('name', product.name)
     product.description = data.get('description', product.description)
     product.price = data.get('price', product.price)
     product.photo_path = data.get('photo_path', product.photo_path)
+    product.barcode = barcode
+    product.min_stock = min_stock
+    product.max_stock = max_stock
     db.session.commit()
     return jsonify({'message': 'Produto atualizado'})
 

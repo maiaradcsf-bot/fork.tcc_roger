@@ -171,10 +171,40 @@ def seed_data():
         ]
 
         for product_data in products_data:
-            product, _ = get_or_create(Product, name=product_data['name'], defaults={
+            # generate unique barcode and stock bounds
+            def generate_barcode():
+                # simple 13-digit numeric barcode
+                while True:
+                    code = ''.join([str(random.randint(0, 9)) for _ in range(13)])
+                    exists = Product.query.filter_by(barcode=code).first()
+                    if not exists:
+                        return code
+
+            min_stock_val = random.randint(5, 15)
+            max_stock_val = min_stock_val + random.randint(20, 100)
+            barcode_val = generate_barcode()
+
+            product, created = get_or_create(Product, name=product_data['name'], defaults={
                 'description': product_data['description'],
                 'price': product_data['price'],
+                'barcode': barcode_val,
+                'min_stock': min_stock_val,
+                'max_stock': max_stock_val,
             })
+            # ensure existing products get these fields if missing
+            if not created:
+                updated = False
+                if not product.barcode:
+                    product.barcode = generate_barcode()
+                    updated = True
+                if product.min_stock is None:
+                    product.min_stock = min_stock_val
+                    updated = True
+                if product.max_stock is None:
+                    product.max_stock = max_stock_val
+                    updated = True
+                if updated:
+                    db.session.add(product)
             for category_name in product_data['categories']:
                 category = category_map.get(category_name) or Category.query.filter_by(name=category_name).first()
                 if category and category not in product.categories:

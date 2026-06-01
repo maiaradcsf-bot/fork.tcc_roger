@@ -8,6 +8,9 @@ class Product(db.Model):
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, nullable=True)
     price = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    barcode = db.Column(db.String(64), nullable=True, unique=True)
+    min_stock = db.Column(db.Integer, nullable=True, default=0)
+    max_stock = db.Column(db.Integer, nullable=True)
     photo_path = db.Column(db.String(255), nullable=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
 

@@ -13,6 +13,7 @@ const summaryProducts = document.getElementById('summaryProducts');
 const summaryClients = document.getElementById('summaryClients');
 const summaryPendingOrders = document.getElementById('summaryPendingOrders');
 const summaryStock = document.getElementById('summaryStock');
+const summaryLowStock = document.getElementById('summaryLowStock');
 const clientsOrdersCount = document.getElementById('clientsOrdersCount');
 const clientsOrdersQuantity = document.getElementById('clientsOrdersQuantity');
 const clientsOrdersProducts = document.getElementById('clientsOrdersProducts');
@@ -249,6 +250,16 @@ async function loadDashboardSummary() {
     if (summaryCategories) summaryCategories.textContent = Array.isArray(categories) ? categories.length : '—';
     if (summaryProducts) summaryProducts.textContent = Array.isArray(products) ? products.length : '—';
     if (summaryClients) summaryClients.textContent = Array.isArray(clients) ? clients.length : '—';
+    if (summaryLowStock) {
+      const lowStockCount = Array.isArray(products)
+        ? products.filter((product) => {
+            const stock = Number(product.stock || 0);
+            const minStock = product.min_stock === null || product.min_stock === undefined ? null : Number(product.min_stock);
+            return minStock !== null && Number.isFinite(stock) && Number.isFinite(minStock) && stock <= minStock;
+          }).length
+        : '—';
+      summaryLowStock.textContent = lowStockCount;
+    }
     if (summaryPendingOrders) {
       const pendingCount = Array.isArray(orders)
         ? orders.filter((order) => ['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes((order.status || '').toString().toLowerCase())).length
@@ -471,7 +482,7 @@ async function loadCategories(button = null) {
 
 async function loadProducts(button = null) {
   if (!productsTableBody && !stockMovesTableBody) return;
-  if (productsTableBody) renderTablePlaceholder(productsTableBody, 6, 'Carregando produtos...');
+  if (productsTableBody) renderTablePlaceholder(productsTableBody, 9, 'Carregando produtos...');
   if (stockMovesTableBody) renderTablePlaceholder(stockMovesTableBody, 4, 'Carregando movimentações...');
   setLoadingState(button, true);
 
@@ -481,7 +492,7 @@ async function loadProducts(button = null) {
       if (!Array.isArray(products) || products.length === 0) {
         productsTableBody.innerHTML = `
           <tr>
-            <td colspan="6" class="text-center py-5 text-muted">Nenhum produto encontrado.</td>
+            <td colspan="9" class="text-center py-5 text-muted">Nenhum produto encontrado.</td>
           </tr>
         `;
       } else {
@@ -497,9 +508,12 @@ async function loadProducts(button = null) {
                   ${product.photo_path ? `<img src="${product.photo_path}" alt="${product.name}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
                   ${product.name || '—'}
                 </td>
+                <td>${escapeHtml(product.barcode || '—')}</td>
                 <td>${escapeHtml(categoriesText)}</td>
                 <td>R$ ${Number(product.price || 0).toFixed(2)}</td>
                 <td>${product.stock ?? '—'}</td>
+                <td>${product.min_stock ?? '—'}</td>
+                <td>${product.max_stock ?? '—'}</td>
                 <td class="text-center">
                   <div class="btn-group btn-group-sm" role="group">
                     <button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>
@@ -518,7 +532,7 @@ async function loadProducts(button = null) {
     if (productsTableBody) {
       productsTableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar produtos: ${error.message}</td>
+          <td colspan="9" class="text-center py-5 text-danger">Falha ao carregar produtos: ${error.message}</td>
         </tr>
       `;
     }
@@ -1291,13 +1305,16 @@ async function openProductModal(mode, productId = null) {
   const modalTitle = document.getElementById('productModalLabel');
   const idField = document.getElementById('productId');
   const nameField = document.getElementById('productName');
+  const barcodeField = document.getElementById('productBarcode');
+  const minStockField = document.getElementById('productMinStock');
+  const maxStockField = document.getElementById('productMaxStock');
   const descField = document.getElementById('productDescription');
   const priceField = document.getElementById('productPrice');
   const photoField = document.getElementById('productPhoto');
   const photoPreview = document.getElementById('productPhotoPreview');
   const stockField = document.getElementById('productStock');
 
-  if (!modalTitle || !idField || !nameField || !descField || !priceField || !photoField || !stockField) return;
+  if (!modalTitle || !idField || !nameField || !barcodeField || !minStockField || !maxStockField || !descField || !priceField || !photoField || !stockField) return;
 
   productPhotoURL = '';
   photoPreview.innerHTML = '';
@@ -1314,6 +1331,9 @@ async function openProductModal(mode, productId = null) {
     modalTitle.textContent = 'Editar Produto';
     idField.value = product.id;
     nameField.value = product.name || '';
+    barcodeField.value = product.barcode || '';
+    minStockField.value = product.min_stock ?? 0;
+    maxStockField.value = product.max_stock ?? '';
     descField.value = product.description || '';
     priceField.value = product.price ?? 0;
     photoField.value = '';
@@ -1329,6 +1349,9 @@ async function openProductModal(mode, productId = null) {
     modalTitle.textContent = 'Novo Produto';
     idField.value = '';
     nameField.value = '';
+    barcodeField.value = '';
+    minStockField.value = 0;
+    maxStockField.value = '';
     descField.value = '';
     priceField.value = 0;
     photoField.value = '';
@@ -1382,6 +1405,9 @@ async function saveProduct(event) {
   event.preventDefault();
   const productId = document.getElementById('productId').value;
   const name = document.getElementById('productName').value.trim();
+  const barcode = document.getElementById('productBarcode').value.trim();
+  const minStock = Number(document.getElementById('productMinStock').value || 0);
+  const maxStock = document.getElementById('productMaxStock').value;
   const description = document.getElementById('productDescription').value.trim();
   const price = Number(document.getElementById('productPrice').value || 0);
   const submitButton = event.submitter || document.querySelector('#productForm button[type="submit"]');
@@ -1398,7 +1424,16 @@ async function saveProduct(event) {
     const categoryIds = categorySelect
       ? Array.from(categorySelect.selectedOptions).map((option) => Number(option.value))
       : [];
-    const payload = { name, description, price, photo_path: productPhotoURL, category_ids: categoryIds };
+    const payload = {
+      name,
+      barcode: barcode || null,
+      min_stock: Number.isFinite(minStock) ? minStock : null,
+      max_stock: maxStock !== '' ? Number(maxStock) : null,
+      description,
+      price,
+      photo_path: productPhotoURL,
+      category_ids: categoryIds,
+    };
     let createdProductId = null;
 
     if (productId) {
@@ -1410,6 +1445,11 @@ async function saveProduct(event) {
       showAlert('success', 'Produto atualizado com sucesso.');
     } else {
       const stockValue = Number(document.getElementById('productStock').value || 0);
+      if (payload.max_stock !== null && stockValue > payload.max_stock) {
+        showAlert('warning', 'Estoque inicial não pode ser maior que o estoque máximo.');
+        setLoadingState(submitButton, false);
+        return;
+      }
       const createResponse = await fetchJson('/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

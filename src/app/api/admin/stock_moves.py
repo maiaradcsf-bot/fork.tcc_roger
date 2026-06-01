@@ -80,6 +80,10 @@ def admin_create_stock_move():
     
     quantity_change_int = int(quantity_change)
     old_qty = stock.quantity
+    if quantity_change_int > 0 and stock.product and stock.product.max_stock is not None:
+        max_stock = stock.product.max_stock or 0
+        if stock.quantity + quantity_change_int > max_stock:
+            return jsonify({'error': 'Quantidade de entrada excede o estoque máximo permitido'}), 400
     stock.quantity = max(stock.quantity + quantity_change_int, 0)
     try:
         current_app.logger.info(f"[StockChange] admin_create_stock_move stock_id={stock.id} product_id={stock.product_id} {old_qty} -> {stock.quantity} change={quantity_change_int}")
