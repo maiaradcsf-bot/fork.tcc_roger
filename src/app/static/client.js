@@ -357,35 +357,62 @@ window.visualizarProduto = function(productId) {
 }
 
 async function requestQuantity(productName, maxQuantity) {
-  if (window.Swal) {
-    const { value } = await Swal.fire({
-      title: `Adicionar requisição: ${productName}`,
-      input: 'number',
-      inputLabel: `Quantidade disponível: ${maxQuantity}`,
-      inputValue: 1,
-      inputAttributes: {
-        min: 1,
-        max: maxQuantity,
-        step: 1
-      },
-      showCancelButton: true,
-      confirmButtonText: 'Adicionar ao carrinho',
-      preConfirm: (v) => {
-        const n = Number(v);
-        if (!n || n < 1) {
-          Swal.showValidationMessage('Informe uma quantidade válida (>=1)');
-          return false;
-        }
-        if (n > maxQuantity) {
-          Swal.showValidationMessage(`Quantidade máxima disponível: ${maxQuantity}`);
-          return false;
-        }
-        return n;
-      }
-    });
-    return value;
+  const modal = document.getElementById('clientProductQuantityModal');
+  const modalLabel = document.getElementById('clientProductQuantityModalLabel');
+  const modalMessage = document.getElementById('clientProductQuantityMessage');
+  const quantityInput = document.getElementById('clientProductQuantityInput');
+  const quantityHelp = document.getElementById('clientProductQuantityMax');
+  const quantityForm = document.getElementById('clientProductQuantityForm');
+
+  if (!modal || !modalLabel || !modalMessage || !quantityInput || !quantityHelp || !quantityForm) {
+    return promptQuantityFallback(productName, maxQuantity);
   }
 
+  modalLabel.textContent = `Adicionar requisição: ${productName}`;
+  modalMessage.textContent = `Quantidade disponível: ${maxQuantity}`;
+  quantityHelp.textContent = maxQuantity;
+  quantityInput.value = 1;
+  quantityInput.min = 1;
+  quantityInput.max = maxQuantity;
+  quantityInput.focus();
+
+  const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+
+  return new Promise((resolve) => {
+    const onSubmit = (event) => {
+      event.preventDefault();
+      const value = Number(quantityInput.value);
+      if (!value || value < 1) {
+        quantityInput.classList.add('is-invalid');
+        return;
+      }
+      if (value > maxQuantity) {
+        quantityInput.classList.add('is-invalid');
+        return;
+      }
+      quantityInput.classList.remove('is-invalid');
+      bsModal.hide();
+      cleanup();
+      resolve(value);
+    };
+
+    const onHide = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const cleanup = () => {
+      quantityForm.removeEventListener('submit', onSubmit);
+      modal.removeEventListener('hidden.bs.modal', onHide);
+    };
+
+    quantityForm.addEventListener('submit', onSubmit);
+    modal.addEventListener('hidden.bs.modal', onHide);
+    bsModal.show();
+  });
+}
+
+function promptQuantityFallback(productName, maxQuantity) {
   const value = window.prompt(`Quantidade para ${productName}`, '1');
   if (value === null) return null;
   const quantity = Number(value);

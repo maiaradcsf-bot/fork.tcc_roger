@@ -1,0 +1,24 @@
+<div class="modal fade" id="clientProductQuantityModal" tabindex="-1" aria-labelledby="clientProductQuantityModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clientProductQuantityModalLabel">Selecionar quantidade</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <form id="clientProductQuantityForm">
+        <div class="modal-body">
+          <p id="clientProductQuantityMessage" class="mb-3">Informe a quantidade desejada.</p>
+          <div class="mb-3">
+            <label for="clientProductQuantityInput" class="form-label">Quantidade</label>
+            <input type="number" id="clientProductQuantityInput" class="form-control" min="1" value="1" required />
+            <div id="clientProductQuantityHelp" class="form-text">Máximo disponível: <span id="clientProductQuantityMax">0</span></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="clientProductQuantityConfirmButton">Adicionar ao carrinho</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -39,6 +39,7 @@ const refreshSettingsProfilesButton = document.getElementById('refreshSettingsPr
 let settingsUsersCache = [];
 let settingsPermissionsCache = [];
 let settingsProfilesCache = [];
+let pendingOrderAction = null;
 
 logoutButton?.addEventListener('click', handleLogout);
 
@@ -293,13 +294,13 @@ async function loadOrders(button = null) {
         const normalizedStatus = (order.status || '').toString().toLowerCase();
         const actionButtons = [];
         if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
-          actionButtons.push(`<button type="button" class="btn btn-success" onclick="handleAdminOrderAction(${order.id}, 'approve', this)">Aprovar</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-danger" onclick="handleAdminOrderAction(${order.id}, 'reject', this)">Rejeitar</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="handleAdminOrderAction(${order.id}, 'cancel', this)">Cancelar</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${order.id}, 'approve', this)">Aprovar</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-danger" onclick="openOrderActionConfirm(${order.id}, 'reject', this)">Rejeitar</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
         }
         if (['approved', 'aprovado'].includes(normalizedStatus)) {
-          actionButtons.push(`<button type="button" class="btn btn-primary" onclick="handleAdminOrderAction(${order.id}, 'finish', this)">Retirado</button>`);
-          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="handleAdminOrderAction(${order.id}, 'cancel', this)">Cancelar</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${order.id}, 'finish', this)">Retirado</button>`);
+          actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
         }
 
         return `
@@ -331,6 +332,35 @@ async function loadOrders(button = null) {
   } finally {
     setLoadingState(button, false);
   }
+}
+
+function openOrderActionConfirm(orderId, action, button) {
+  const modal = document.getElementById('orderActionConfirmModal');
+  const message = document.getElementById('orderActionConfirmMessage');
+  const confirmButton = document.getElementById('orderActionConfirmButton');
+  if (!modal || !message || !confirmButton) return;
+
+  const actionText = {
+    approve: 'aprovar',
+    reject: 'rejeitar',
+    cancel: 'cancelar',
+    finish: 'marcar como retirado'
+  }[action] || 'realizar esta ação';
+
+  pendingOrderAction = { orderId, action, button };
+  message.textContent = `Tem certeza que deseja ${actionText} esta solicitação?`;
+  confirmButton.className = action === 'reject' ? 'btn btn-danger' : action === 'cancel' ? 'btn btn-outline-danger' : 'btn btn-primary';
+  confirmButton.textContent = action === 'finish' ? 'Retirado' : 'Confirmar';
+
+  bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+async function confirmOrderAction() {
+  if (!pendingOrderAction) return;
+  const { orderId, action, button } = pendingOrderAction;
+  pendingOrderAction = null;
+  document.getElementById('orderActionConfirmModal')?.querySelector('[data-bs-dismiss]')?.click();
+  await handleAdminOrderAction(orderId, action, button);
 }
 
 async function openOrderDetailModal(orderId) {
@@ -420,7 +450,7 @@ async function loadCategories(button = null) {
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
               <button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${category.id})">Editar</button>
-              <button type="button" class="btn btn-outline-danger" onclick="deleteCategory(${category.id})">Excluir</button>
+              <button type="button" class="btn btn-outline-danger" onclick='deleteCategory(${category.id}, ${JSON.stringify(category.name)})'>Excluir</button>
             </div>
           </td>
         </tr>
@@ -473,7 +503,7 @@ async function loadProducts(button = null) {
                 <td class="text-center">
                   <div class="btn-group btn-group-sm" role="group">
                     <button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>
-                    <button type="button" class="btn btn-outline-danger" onclick="deleteProduct(${product.id})">Excluir</button>
+                    <button type="button" class="btn btn-outline-danger" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>Excluir</button>
                   </div>
                 </td>
               </tr>
@@ -1239,8 +1269,11 @@ async function saveCategory(event) {
   }
 }
 
-async function deleteCategory(categoryId) {
-  if (!confirm('Deseja excluir esta categoria?')) return;
+function deleteCategory(categoryId, categoryName = null) {
+  openDeleteConfirm('category', categoryId, categoryName);
+}
+
+async function performDeleteCategory(categoryId) {
   try {
     await fetchJson(`/categories/${categoryId}`, { method: 'DELETE' });
     showAlert('success', 'Categoria excluída com sucesso.');
@@ -1248,6 +1281,10 @@ async function deleteCategory(categoryId) {
   } catch (error) {
     showAlert('danger', `Erro ao excluir categoria: ${error.message}`);
   }
+}
+
+function deleteProduct(productId, productName = null) {
+  openDeleteConfirm('product', productId, productName);
 }
 
 async function openProductModal(mode, productId = null) {
@@ -1410,14 +1447,44 @@ async function saveProduct(event) {
   }
 }
 
-async function deleteProduct(productId) {
-  if (!confirm('Deseja excluir este produto?')) return;
+async function performDeleteProduct(productId) {
   try {
     await fetchJson(`/products/${productId}`, { method: 'DELETE' });
     showAlert('success', 'Produto excluído com sucesso.');
     await loadProducts();
   } catch (error) {
     showAlert('danger', `Erro ao excluir produto: ${error.message}`);
+  }
+}
+
+function openDeleteConfirm(type, id, name = null) {
+  const modal = document.getElementById('deleteConfirmModal');
+  const message = document.getElementById('deleteConfirmMessage');
+  const confirmButton = document.getElementById('deleteConfirmButton');
+  if (!modal || !message || !confirmButton) return;
+
+  const label = type === 'category' ? 'categoria' : 'produto';
+  message.textContent = name
+    ? `Tem certeza que deseja excluir a ${label} "${name}"?`
+    : `Tem certeza que deseja excluir este ${label}?`;
+  confirmButton.textContent = `Excluir ${label}`;
+  confirmButton.className = 'btn btn-danger';
+
+  pendingDelete = { type, id };
+  bootstrap.Modal.getOrCreateInstance(modal).show();
+}
+
+async function confirmDelete() {
+  if (!pendingDelete) return;
+  const { type, id } = pendingDelete;
+  pendingDelete = null;
+  const modal = document.getElementById('deleteConfirmModal');
+  bootstrap.Modal.getInstance(modal)?.hide();
+
+  if (type === 'category') {
+    await performDeleteCategory(id);
+  } else {
+    await performDeleteProduct(id);
   }
 }
 
@@ -1566,6 +1633,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const filterStockMovesButton = document.getElementById('filterStockMovesButton');
   const quick7DaysButton = document.getElementById('quick7DaysButton');
   const quick90DaysButton = document.getElementById('quick90DaysButton');
+  const orderActionConfirmButton = document.getElementById('orderActionConfirmButton');
+  const deleteConfirmButton = document.getElementById('deleteConfirmButton');
   const stockStartDate = document.getElementById('stockStartDate');
   const stockEndDate = document.getElementById('stockEndDate');
   const categoryForm = document.getElementById('categoryForm');
@@ -1586,6 +1655,8 @@ window.addEventListener('DOMContentLoaded', () => {
   filterStockMovesButton?.addEventListener('click', () => loadStockMoves(filterStockMovesButton));
   quick7DaysButton?.addEventListener('click', () => setStockFilterRange(7, true));
   quick90DaysButton?.addEventListener('click', () => setStockFilterRange(90, true));
+  orderActionConfirmButton?.addEventListener('click', confirmOrderAction);
+  deleteConfirmButton?.addEventListener('click', confirmDelete);
   categoryForm?.addEventListener('submit', saveCategory);
   productForm?.addEventListener('submit', saveProduct);
   stockMoveForm?.addEventListener('submit', saveStockMove);
