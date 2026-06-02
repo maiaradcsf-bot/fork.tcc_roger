@@ -44,7 +44,11 @@ body {
 .admin-sidebar .nav-link:hover,
 .admin-sidebar .nav-link.active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.12);
+  background: #011142;
+}
+
+.bg-dark{
+  background: #011142;
 }
 
 .admin-main {
