@@ -75,11 +75,6 @@ services:
 volumes:
   vol_database:
     name: banco_de_dados_tcc
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./.docker/mysql
   vol_images:
     name: imagens_tcc
     driver: local
