@@ -11,6 +11,9 @@ from app.models.rules import Rule
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'uploads'))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# Pasta temporária (fora de static/) usada pelo wizard de importação de produtos via CSV
+IMPORT_TMP_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tmp_imports'))
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 

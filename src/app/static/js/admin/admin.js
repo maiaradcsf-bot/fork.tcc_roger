@@ -40,8 +40,29 @@ const refreshSettingsProfilesButton = document.getElementById('refreshSettingsPr
 let settingsUsersCache = [];
 let settingsPermissionsCache = [];
 let settingsProfilesCache = [];
+let productsCache = [];
 let pendingOrderAction = null;
 let adminPermissions = [];
+
+const IMPORT_FIELD_DEFS = [
+  { key: 'name', label: 'Nome do produto', required: true },
+  { key: 'barcode', label: 'Código de Barras (referência)', required: false },
+  { key: 'price', label: 'Preço', required: true },
+  { key: 'description', label: 'Descrição', required: false },
+  { key: 'min_stock', label: 'Estoque mínimo', required: false },
+  { key: 'max_stock', label: 'Estoque máximo', required: false },
+  { key: 'stock_quantity', label: 'Quantidade em estoque', required: false },
+  { key: 'category', label: 'Categoria', required: false },
+];
+
+let importState = {
+  importId: null,
+  headers: [],
+  sampleRows: [],
+  mapping: {},
+  previewResult: null,
+  completed: false,
+};
 
 logoutButton?.addEventListener('click', handleLogout);
 
@@ -606,6 +627,7 @@ async function loadProducts(button = null) {
   try {
     const products = productsTableBody ? await fetchJson('/products') : [];
     if (productsTableBody) {
+      productsCache = Array.isArray(products) ? products : [];
       if (!Array.isArray(products) || products.length === 0) {
         productsTableBody.innerHTML = `
           <tr>
@@ -619,7 +641,7 @@ async function loadProducts(button = null) {
               ? product.categories.map((cat) => cat.path || cat.name).join(', ')
               : '—';
             return `
-              <tr>
+              <tr data-product-id="${product.id}">
                 <th scope="row">${index + 1}</th>
                 <td>
                   ${product.photo_path ? `<img src="${product.photo_path}" alt="${product.name}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
@@ -664,6 +686,96 @@ async function loadProducts(button = null) {
   } finally {
     setLoadingState(button, false);
   }
+}
+
+const EXPORT_FIELD_DEFS = [
+  { key: 'id', label: 'ID', value: (p) => p.id },
+  { key: 'name', label: 'Nome', value: (p) => p.name || '' },
+  { key: 'description', label: 'Descrição', value: (p) => p.description || '' },
+  { key: 'barcode', label: 'Código de Barras', value: (p) => p.barcode || '' },
+  { key: 'categories', label: 'Categoria', value: (p) => (Array.isArray(p.categories) && p.categories.length ? p.categories.map((cat) => cat.path || cat.name).join(', ') : '') },
+  { key: 'price', label: 'Preço', value: (p) => Number(p.price || 0).toFixed(2) },
+  { key: 'stock', label: 'Estoque Atual', value: (p) => p.stock ?? '' },
+  { key: 'min_stock', label: 'Estoque Mínimo', value: (p) => p.min_stock ?? '' },
+  { key: 'max_stock', label: 'Estoque Máximo', value: (p) => p.max_stock ?? '' },
+  { key: 'stock_status', label: 'Status do Estoque', value: (p) => getStockStatusLabel(p) },
+];
+
+function getStockStatusLabel(product) {
+  const stock = Number(product.stock ?? 0);
+  if (stock <= 0) return 'Sem estoque';
+  if (product.min_stock !== null && product.min_stock !== undefined && stock <= Number(product.min_stock)) return 'Estoque baixo';
+  return 'Normal';
+}
+
+function getVisibleExportProducts() {
+  if (!productsTableBody) return [];
+  const productById = new Map(productsCache.map((p) => [Number(p.id), p]));
+  return Array.from(productsTableBody.querySelectorAll('tr[data-product-id]'))
+    .filter((row) => row.offsetParent !== null && !row.classList.contains('d-none'))
+    .map((row) => productById.get(Number(row.dataset.productId)))
+    .filter(Boolean);
+}
+
+function renderExportColumnsList() {
+  const container = document.getElementById('exportColumnsList');
+  if (!container) return;
+  container.innerHTML = EXPORT_FIELD_DEFS.map((field) => `
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" value="${field.key}" id="exportColumnOption${field.key}" checked>
+      <label class="form-check-label" for="exportColumnOption${field.key}">${escapeHtml(field.label)}</label>
+    </div>
+  `).join('');
+}
+
+function escapeCsvValue(value) {
+  const text = value === null || value === undefined ? '' : String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function openExportModal() {
+  const visibleProducts = getVisibleExportProducts();
+  const countEl = document.getElementById('exportProductsCount');
+  if (countEl) countEl.textContent = visibleProducts.length;
+  renderExportColumnsList();
+  openModal('exportProductsModal');
+}
+
+function exportProductsToCsv() {
+  const container = document.getElementById('exportColumnsList');
+  const selectedKeys = Array.from(container?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => input.value);
+  if (!selectedKeys.length) {
+    showAlert('warning', 'Selecione ao menos uma coluna para exportar.');
+    return;
+  }
+
+  const products = getVisibleExportProducts();
+  if (!products.length) {
+    showAlert('warning', 'Não há produtos na listagem atual para exportar.');
+    return;
+  }
+
+  const fields = EXPORT_FIELD_DEFS.filter((field) => selectedKeys.includes(field.key));
+  const header = fields.map((field) => escapeCsvValue(field.label)).join(',');
+  const rows = products.map((product) => fields.map((field) => escapeCsvValue(field.value(product))).join(','));
+  const csvContent = '\uFEFF' + [header, ...rows].join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const today = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `produtos_export_${today}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+
+  bootstrap.Modal.getInstance(document.getElementById('exportProductsModal'))?.hide();
+  showAlert('success', `${products.length} produto(s) exportado(s) com sucesso.`);
 }
 
 async function loadClients(button = null) {
@@ -796,26 +908,26 @@ async function loadSettingsRulesOptions(selectedIds = []) {
     settingsProfilesCache = settingsProfilesCache || [];
 
     if (settingsUserRulesSelect) {
-      settingsUserRulesSelect.innerHTML = '';
-      rules.forEach((rule) => {
-        const option = document.createElement('option');
-        option.value = rule.id;
-        option.textContent = rule.name;
-        if (selectedIds.includes(rule.id)) option.selected = true;
-        settingsUserRulesSelect.append(option);
-      });
+      settingsUserRulesSelect.innerHTML = rules.length
+        ? rules.map((rule) => `
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="${rule.id}" id="settingsUserRuleOption${rule.id}" ${selectedIds.includes(rule.id) ? 'checked' : ''}>
+              <label class="form-check-label" for="settingsUserRuleOption${rule.id}">${escapeHtml(rule.name)}</label>
+            </div>
+          `).join('')
+        : '<p class="text-muted mb-0">Nenhum perfil cadastrado.</p>';
     }
 
     if (settingsProfilePermissionsSelect) {
       const permissions = await fetchJson('/permissions');
-      settingsProfilePermissionsSelect.innerHTML = '';
-      permissions.forEach((permission) => {
-        const option = document.createElement('option');
-        option.value = permission.id;
-        option.textContent = permission.name;
-        if (selectedIds.includes(permission.id)) option.selected = true;
-        settingsProfilePermissionsSelect.append(option);
-      });
+      settingsProfilePermissionsSelect.innerHTML = permissions.length
+        ? permissions.map((permission) => `
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="${permission.id}" id="settingsProfilePermissionOption${permission.id}" ${selectedIds.includes(permission.id) ? 'checked' : ''}>
+              <label class="form-check-label" for="settingsProfilePermissionOption${permission.id}">${escapeHtml(permission.name)}</label>
+            </div>
+          `).join('')
+        : '<p class="text-muted mb-0">Nenhuma permissão cadastrada.</p>';
     }
   } catch (error) {
     showAlert('danger', `Erro ao carregar opções de configurações: ${error.message}`);
@@ -1015,7 +1127,7 @@ async function saveSettingsUser(event) {
   const username = document.getElementById('settingsUserUsername').value.trim();
   const email = document.getElementById('settingsUserEmail').value.trim();
   const password = document.getElementById('settingsUserPassword').value;
-  const ruleIds = Array.from(settingsUserRulesSelect?.selectedOptions || []).map((option) => Number(option.value));
+  const ruleIds = Array.from(settingsUserRulesSelect?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => Number(input.value));
   const submitButton = event.submitter || settingsUserForm.querySelector('button[type="submit"]');
 
   if (!username || !email) {
@@ -1185,7 +1297,7 @@ async function saveSettingsProfile(event) {
   const profileId = document.getElementById('settingsProfileId').value;
   const name = document.getElementById('settingsProfileName').value.trim();
   const description = document.getElementById('settingsProfileDescription').value.trim();
-  const permissionIds = Array.from(settingsProfilePermissionsSelect?.selectedOptions || []).map((option) => Number(option.value));
+  const permissionIds = Array.from(settingsProfilePermissionsSelect?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => Number(input.value));
   const submitButton = event.submitter || settingsProfileForm.querySelector('button[type="submit"]');
 
   if (!name) {
@@ -1645,6 +1757,249 @@ async function confirmDelete() {
   }
 }
 
+function guessColumnForField(fieldKey, headers) {
+  const normalized = headers.map((h) => h.toLowerCase().trim());
+  const patterns = {
+    name: ['nome', 'nome do produto', 'produto', 'name'],
+    barcode: ['codigo de barras', 'código de barras', 'barcode', 'codigo', 'código', 'ean'],
+    price: ['preco', 'preço', 'price', 'valor'],
+    description: ['descricao', 'descrição', 'description'],
+    min_stock: ['estoque minimo', 'estoque mínimo', 'min_stock', 'minimo', 'mínimo'],
+    max_stock: ['estoque maximo', 'estoque máximo', 'max_stock', 'maximo', 'máximo'],
+    stock_quantity: ['quantidade em estoque', 'quantidade', 'estoque', 'stock', 'qtd'],
+    category: ['categoria', 'category'],
+  };
+  const candidates = patterns[fieldKey] || [];
+  for (const candidate of candidates) {
+    const idx = normalized.findIndex((h) => h === candidate);
+    if (idx !== -1) return headers[idx];
+  }
+  for (const candidate of candidates) {
+    const idx = normalized.findIndex((h) => h.includes(candidate));
+    if (idx !== -1) return headers[idx];
+  }
+  return '';
+}
+
+function goToImportStep(step) {
+  ['importStep1', 'importStep2', 'importStep3'].forEach((id, idx) => {
+    document.getElementById(id)?.classList.toggle('d-none', idx + 1 !== step);
+  });
+  [1, 2, 3].forEach((s) => {
+    const indicator = document.querySelector(`[data-step-indicator="${s}"]`);
+    if (!indicator) return;
+    indicator.className = `badge rounded-pill ${s === step ? 'bg-primary' : s < step ? 'bg-success' : 'bg-secondary'}`;
+  });
+  document.getElementById('importBackButton')?.classList.toggle('d-none', step !== 2);
+  document.getElementById('importNextButton')?.classList.toggle('d-none', step !== 1);
+  document.getElementById('importCommitButton')?.classList.toggle('d-none', step !== 2);
+  document.getElementById('importFinishButton')?.classList.toggle('d-none', step !== 3);
+  document.getElementById('importCancelButton')?.classList.toggle('d-none', step === 3);
+}
+
+function renderImportMappingTable() {
+  const tbody = document.getElementById('importMappingTableBody');
+  if (!tbody) return;
+
+  tbody.innerHTML = IMPORT_FIELD_DEFS.map((field) => {
+    const guessed = importState.mapping[field.key] || guessColumnForField(field.key, importState.headers);
+    importState.mapping[field.key] = guessed;
+    const options = ['<option value="">— não importar —</option>']
+      .concat(importState.headers.map((h) => `<option value="${escapeHtml(h)}" ${h === guessed ? 'selected' : ''}>${escapeHtml(h)}</option>`))
+      .join('');
+    return `
+      <tr>
+        <td>${escapeHtml(field.label)}${field.required ? ' <span class="text-danger">*</span>' : ''}</td>
+        <td>
+          <select class="form-select form-select-sm" data-import-field="${field.key}" ${field.required ? 'required' : ''}>
+            ${options}
+          </select>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('[data-import-field]').forEach((select) => {
+    select.addEventListener('change', (event) => {
+      importState.mapping[event.target.dataset.importField] = event.target.value;
+    });
+  });
+}
+
+function renderImportSample() {
+  const head = document.getElementById('importSampleHead');
+  const body = document.getElementById('importSampleBody');
+  if (!head || !body) return;
+
+  head.innerHTML = `<tr>${importState.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+  body.innerHTML = importState.sampleRows.length
+    ? importState.sampleRows.map((row) => `
+        <tr>${importState.headers.map((h) => `<td>${escapeHtml(row[h] ?? '')}</td>`).join('')}</tr>
+      `).join('')
+    : `<tr><td class="text-muted">Sem linhas de exemplo</td></tr>`;
+}
+
+function resetImportWizard() {
+  importState = { importId: null, headers: [], sampleRows: [], mapping: {}, previewResult: null, completed: false };
+  goToImportStep(1);
+}
+
+async function handleImportFileSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.csv')) {
+    showAlert('warning', 'Selecione um arquivo no formato .csv.');
+    return;
+  }
+
+  const importButton = document.getElementById('importProductsButton');
+  setLoadingState(importButton, true);
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/products/import/upload`, {
+      method: 'POST',
+      headers: { ...buildAuthHeader() },
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Falha ao enviar arquivo CSV.');
+    }
+    const data = await response.json();
+
+    importState = {
+      importId: data.import_id,
+      headers: data.headers || [],
+      sampleRows: data.sample_rows || [],
+      mapping: {},
+      previewResult: null,
+      completed: false,
+    };
+
+    const importFileName = document.getElementById('importFileName');
+    const importRowCount = document.getElementById('importRowCount');
+    if (importFileName) importFileName.textContent = file.name;
+    if (importRowCount) importRowCount.textContent = data.row_count ?? 0;
+
+    renderImportMappingTable();
+    renderImportSample();
+    goToImportStep(1);
+    openModal('importWizardModal');
+  } catch (error) {
+    showAlert('danger', `Erro ao enviar CSV: ${error.message}`);
+  } finally {
+    setLoadingState(importButton, false);
+  }
+}
+
+function importActionBadge(action) {
+  if (action === 'create') return '<span class="badge bg-success">Novo</span>';
+  if (action === 'update') return '<span class="badge bg-info text-dark">Atualizar</span>';
+  return '<span class="badge bg-danger">Inválido</span>';
+}
+
+function renderImportPreview() {
+  const summaryContainer = document.getElementById('importSummaryCards');
+  const tbody = document.getElementById('importPreviewTableBody');
+  if (!summaryContainer || !tbody || !importState.previewResult) return;
+
+  const { summary, rows } = importState.previewResult;
+  summaryContainer.innerHTML = `
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold">${summary.total}</div><div class="text-muted small">Linhas no arquivo</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-success">${summary.to_create}</div><div class="text-muted small">Novos produtos</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-info">${summary.to_update}</div><div class="text-muted small">Serão atualizados</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-danger">${summary.invalid}</div><div class="text-muted small">Inválidos (ignorados)</div></div></div>
+  `;
+
+  tbody.innerHTML = rows.map((row) => {
+    let details;
+    if (row.action === 'invalid') {
+      details = `<span class="text-danger">${row.errors.map(escapeHtml).join('; ')}</span>`;
+    } else if (row.action === 'update' && row.current) {
+      const diffs = [];
+      if (Number(row.current.price ?? 0) !== Number(row.data.price ?? 0)) {
+        diffs.push(`Preço: R$ ${Number(row.current.price ?? 0).toFixed(2)} &rarr; R$ ${Number(row.data.price ?? 0).toFixed(2)}`);
+      }
+      if (row.data.stock_quantity !== null && row.data.stock_quantity !== undefined && row.current.stock_quantity !== row.data.stock_quantity) {
+        diffs.push(`Estoque: ${row.current.stock_quantity ?? 0} &rarr; ${row.data.stock_quantity}`);
+      }
+      details = diffs.length ? diffs.join('<br>') : '<span class="text-muted">Sem alterações relevantes</span>';
+    } else {
+      details = '<span class="text-muted">—</span>';
+    }
+    return `
+      <tr>
+        <td>${row.row}</td>
+        <td>${importActionBadge(row.action)}</td>
+        <td>${escapeHtml(row.data.name || '—')}</td>
+        <td>${escapeHtml(row.data.barcode || '—')}</td>
+        <td>${row.data.price !== null && row.data.price !== undefined ? `R$ ${Number(row.data.price).toFixed(2)}` : '—'}</td>
+        <td>${row.data.stock_quantity ?? '—'}</td>
+        <td>${details}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadImportPreview() {
+  const requiredMissing = IMPORT_FIELD_DEFS.filter((field) => field.required && !importState.mapping[field.key]);
+  if (requiredMissing.length) {
+    showAlert('warning', `Mapeie as colunas obrigatórias: ${requiredMissing.map((field) => field.label).join(', ')}.`);
+    return;
+  }
+
+  const nextButton = document.getElementById('importNextButton');
+  setLoadingState(nextButton, true);
+
+  try {
+    const result = await fetchJson('/products/import/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ import_id: importState.importId, mapping: importState.mapping }),
+    });
+    importState.previewResult = result;
+    renderImportPreview();
+    goToImportStep(2);
+  } catch (error) {
+    showAlert('danger', `Erro ao gerar prévia da importação: ${error.message}`);
+  } finally {
+    setLoadingState(nextButton, false);
+  }
+}
+
+async function commitImport() {
+  const commitButton = document.getElementById('importCommitButton');
+  setLoadingState(commitButton, true);
+
+  try {
+    const result = await fetchJson('/products/import/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ import_id: importState.importId, mapping: importState.mapping }),
+    });
+
+    const resultMessage = document.getElementById('importResultMessage');
+    if (resultMessage) {
+      resultMessage.innerHTML = `
+        <strong>${result.created}</strong> produto(s) criado(s) e <strong>${result.updated}</strong> atualizado(s).
+        ${result.skipped ? `<br><span class="text-warning">${result.skipped} linha(s) ignorada(s) por erro de validação.</span>` : ''}
+      `;
+    }
+    importState.completed = true;
+    goToImportStep(3);
+    showAlert('success', 'Importação de produtos concluída com sucesso.');
+    await loadProducts();
+  } catch (error) {
+    showAlert('danger', `Erro ao concluir importação: ${error.message}`);
+  } finally {
+    setLoadingState(commitButton, false);
+  }
+}
+
 async function openStockMoveModal() {
   if (!document.getElementById('stockMoveForm')) return;
   document.getElementById('stockMoveForm')?.reset();
@@ -1783,6 +2138,16 @@ window.addEventListener('DOMContentLoaded', async () => {
   const refreshClientsButton = document.getElementById('refreshClientsButton');
   const newCategoryButton = document.getElementById('newCategoryButton');
   const newProductButton = document.getElementById('newProductButton');
+  const importProductsButton = document.getElementById('importProductsButton');
+  const importProductsFileInput = document.getElementById('importProductsFileInput');
+  const importNextButton = document.getElementById('importNextButton');
+  const importBackButton = document.getElementById('importBackButton');
+  const importCommitButton = document.getElementById('importCommitButton');
+  const importWizardModal = document.getElementById('importWizardModal');
+  const exportProductsButton = document.getElementById('exportProductsButton');
+  const exportConfirmButton = document.getElementById('exportConfirmButton');
+  const exportSelectAllColumns = document.getElementById('exportSelectAllColumns');
+  const exportClearAllColumns = document.getElementById('exportClearAllColumns');
   const newStockMoveButton = document.getElementById('newStockMoveButton');
   const viewStockMovesButton = document.getElementById('viewStockMovesButton');
   const refreshStockMovesButton = document.getElementById('refreshStockMovesButton');
@@ -1805,6 +2170,28 @@ window.addEventListener('DOMContentLoaded', async () => {
   clientsTableBody?.addEventListener('click', handleClientTableClick);
   newCategoryButton?.addEventListener('click', () => openCategoryModal('new'));
   newProductButton?.addEventListener('click', () => openProductModal('new'));
+  importProductsButton?.addEventListener('click', () => importProductsFileInput?.click());
+  importProductsFileInput?.addEventListener('change', handleImportFileSelected);
+  importNextButton?.addEventListener('click', loadImportPreview);
+  importBackButton?.addEventListener('click', () => goToImportStep(1));
+  importCommitButton?.addEventListener('click', commitImport);
+  importWizardModal?.addEventListener('hidden.bs.modal', () => {
+    if (importState.importId && !importState.completed) {
+      fetch(`${API_BASE_URL}/products/import/${importState.importId}`, {
+        method: 'DELETE',
+        headers: { ...buildAuthHeader() },
+      }).catch(() => {});
+    }
+    resetImportWizard();
+  });
+  exportProductsButton?.addEventListener('click', openExportModal);
+  exportConfirmButton?.addEventListener('click', exportProductsToCsv);
+  exportSelectAllColumns?.addEventListener('click', () => {
+    document.querySelectorAll('#exportColumnsList input[type="checkbox"]').forEach((input) => { input.checked = true; });
+  });
+  exportClearAllColumns?.addEventListener('click', () => {
+    document.querySelectorAll('#exportColumnsList input[type="checkbox"]').forEach((input) => { input.checked = false; });
+  });
   newStockMoveButton?.addEventListener('click', openStockMoveModal);
   viewStockMovesButton?.addEventListener('click', () => { window.location.href = '/admin/products/stock-moves'; });
   refreshStockMovesButton?.addEventListener('click', () => loadStockMoves(refreshStockMovesButton));

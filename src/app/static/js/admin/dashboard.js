@@ -1,30 +1,5 @@
 // --- DADOS INICIAIS (Simulando um banco de dados) ---
 
-const produtos = [
-    {
-        id: 'teclado',
-        name: 'Teclado Mecânico',
-        description: 'Teclado mecânico gamer com switches táteis, 104 teclas e iluminação RGB personalizável. Ideal para tarefas longas e uso em almoxarifados que precisam de rapidez e conforto.',
-        price: 259.90,
-        imageUrl: '/static/imagens/industria-4.0.png'
-    },
-    {
-        id: 'mouse',
-        name: 'Mouse Gamer',
-        description: 'Mouse ergonômico com sensor óptico de alta precisão, iluminação LED e design confortável para uso prolongado.',
-        price: 89.90,
-        imageUrl: '/static/imagens/sesi-logo.png'
-    },
-    {
-        id: 'teclado',
-        name: 'Teclado Mecânico',
-        description: 'Teclado mecânico gamer com switches táteis, 104 teclas e iluminação RGB personalizável. Ideal para tarefas longas e uso em almoxarifados que precisam de rapidez e conforto.',
-        price: 259.90,
-        imageUrl: '/static/imagens/industria-4.0.png'
-    },
-
-
-];
 
 const itemsDisponiveis = produtos.map(produto => produto.name);
 

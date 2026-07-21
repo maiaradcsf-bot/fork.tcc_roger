@@ -1,0 +1,27 @@
+<div class="modal fade" id="exportProductsModal" tabindex="-1" aria-labelledby="exportProductsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exportProductsModalLabel"><i class="bi bi-file-earmark-arrow-down me-2"></i>Exportar Produtos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">
+          Selecione as colunas que deseja incluir no arquivo CSV. A exportação considera apenas os produtos atualmente exibidos na listagem (<span id="exportProductsCount">0</span> produto(s)).
+        </p>
+        <div class="d-flex justify-content-end gap-2 mb-2">
+          <button type="button" class="btn btn-link btn-sm p-0" id="exportSelectAllColumns">Selecionar todas</button>
+          <span class="text-muted">|</span>
+          <button type="button" class="btn btn-link btn-sm p-0" id="exportClearAllColumns">Limpar seleção</button>
+        </div>
+        <div id="exportColumnsList" class="border rounded p-2" style="max-height: 280px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="exportConfirmButton">
+          <i class="bi bi-download me-1"></i> Exportar CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

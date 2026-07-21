@@ -1,0 +1,83 @@
+<div class="modal fade" id="importWizardModal" tabindex="-1" aria-labelledby="importWizardModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importWizardModalLabel"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar Produtos via CSV</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-center align-items-center gap-2 mb-4 flex-wrap">
+          <span class="badge rounded-pill bg-primary" data-step-indicator="1">1</span>
+          <small class="text-body">Mapear colunas</small>
+          <i class="bi bi-arrow-right text-muted"></i>
+          <span class="badge rounded-pill bg-secondary" data-step-indicator="2">2</span>
+          <small class="text-body">Revisar</small>
+          <i class="bi bi-arrow-right text-muted"></i>
+          <span class="badge rounded-pill bg-secondary" data-step-indicator="3">3</span>
+          <small class="text-body">Concluído</small>
+        </div>
+
+        <div id="importStep1">
+          <p class="text-muted">
+            Arquivo <strong id="importFileName">—</strong> (<span id="importRowCount">0</span> linha(s) de produtos encontradas).
+            Para cada campo do sistema, escolha a coluna correspondente no CSV enviado.
+          </p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered align-middle">
+              <thead class="table-light">
+                <tr><th>Campo do sistema</th><th>Coluna do CSV</th></tr>
+              </thead>
+              <tbody id="importMappingTableBody"></tbody>
+            </table>
+          </div>
+          <div class="alert alert-info small mb-3 py-2">
+            <i class="bi bi-info-circle me-1"></i>
+            O <strong>Código de Barras</strong> é usado como referência de importação: produtos cujo código já existe no sistema serão <strong>atualizados</strong>; os demais serão <strong>criados</strong> como novos produtos.
+          </div>
+          <p class="fw-semibold mb-1">Prévia do arquivo</p>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+              <thead id="importSampleHead" class="table-light"></thead>
+              <tbody id="importSampleBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="importStep2" class="d-none">
+          <div class="row g-2 mb-3" id="importSummaryCards"></div>
+          <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light" style="position: sticky; top: 0;">
+                <tr>
+                  <th>#</th>
+                  <th>Situação</th>
+                  <th>Nome</th>
+                  <th>Código de Barras</th>
+                  <th>Preço</th>
+                  <th>Estoque</th>
+                  <th>Detalhes</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="importStep3" class="d-none text-center py-4">
+          <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+          <h4 class="mt-3">Importação concluída!</h4>
+          <p class="text-muted" id="importResultMessage"></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="importCancelButton" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-secondary d-none" id="importBackButton">Voltar</button>
+        <button type="button" class="btn btn-primary" id="importNextButton">Avançar</button>
+        <button type="button" class="btn btn-success d-none" id="importCommitButton">
+          <i class="bi bi-check-lg me-1"></i> Concluir importação
+        </button>
+        <button type="button" class="btn btn-primary d-none" id="importFinishButton" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>

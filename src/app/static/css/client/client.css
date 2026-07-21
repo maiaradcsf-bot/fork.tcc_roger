@@ -1,8 +1,0 @@
-:root{
-  --bg: #f8fafc;
-  --muted: #2e4574;
-}
-body{font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg);}
-.card{border-radius:0.5rem}
-.client-grid img{width:100%;height:160px;object-fit:cover;border-top-left-radius:0.5rem;border-top-right-radius:0.5rem}
-.text-truncate{max-height:3.6em;overflow:hidden}

@@ -66,6 +66,7 @@ logs/
 *.tmp
 *.temp
 .cache/
+src/app/tmp_imports/
 
 # Docker volumes
 .docker/mysql/*

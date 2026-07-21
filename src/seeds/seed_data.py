@@ -42,6 +42,7 @@ def seed_data():
             ('admin.products.create', 'Criar produtos no admin'),
             ('admin.products.edit', 'Editar produtos no admin'),
             ('admin.products.delete', 'Excluir produtos no admin'),
+            ('admin.products.import', 'Importar produtos via CSV no admin'),
             ('admin.stock.moves.list', 'Listar movimentações de estoque no admin'),
             ('admin.stock.moves.create', 'Registrar movimentações de estoque no admin'),
             ('admin.stock.moves.edit', 'Editar movimentações de estoque no admin'),
@@ -73,8 +74,9 @@ def seed_data():
             permission_objects.append(permission)
 
         administrator, created_admin_rule = get_or_create(Rule, name='administrator', defaults={'description': 'Administrador completo do sistema'})
-        if created_admin_rule or not administrator.permissions:
-            administrator.permissions = permission_objects
+        missing_permissions = [perm for perm in permission_objects if perm not in administrator.permissions]
+        if missing_permissions:
+            administrator.permissions = administrator.permissions + missing_permissions
 
         client_rule, created_client_rule = get_or_create(Rule, name='cliente', defaults={'description': 'Regra padrão para clientes'})
         client_permissions = [
@@ -159,9 +161,7 @@ def seed_data():
         ]
 
         for product_data in products_data:
-            # generate unique barcode and stock bounds
             def generate_barcode():
-                # simple 13-digit numeric barcode
                 while True:
                     code = ''.join([str(random.randint(0, 9)) for _ in range(13)])
                     exists = Product.query.filter_by(barcode=code).first()
@@ -179,7 +179,6 @@ def seed_data():
                 'min_stock': min_stock_val,
                 'max_stock': max_stock_val,
             })
-            # ensure existing products get these fields if missing
             if not created:
                 updated = False
                 if not product.barcode:
@@ -200,7 +199,6 @@ def seed_data():
 
             stock, created_stock = get_or_create(Stock, product_id=product.id, defaults={'quantity': random.randint(10, 99)})
 
-            # Ajustar alguns produtos para ficarem próximos ou abaixo do estoque mínimo
             products_with_losses = {
                 'Caneta Esferográfica Azul',
                 'Caderno Universitário 200 Folhas',
