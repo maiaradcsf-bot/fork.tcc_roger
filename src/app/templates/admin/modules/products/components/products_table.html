@@ -17,6 +17,9 @@
         <button id="viewStockMovesButton" class="btn btn-secondary" data-permission="admin.stock.moves.list">
           <i class="bi bi-archive me-1"></i> Ver movimentações estoque
         </button>
+        <button id="deleteAllStockButton" class="btn btn-danger" data-permission="admin.stock.delete">
+          <i class="bi bi-trash me-1"></i> Excluir todo o estoque
+        </button>
         <!-- Botão de nova movimentação removido daqui; mantenha criação via página de Movimentações -->
         <button id="refreshProductsButton" class="btn btn-outline-primary" data-permission="admin.products.list">
           <i class="bi bi-arrow-repeat me-1"></i> Atualizar produtos
@@ -51,3 +54,26 @@
     <!-- Movimentações de Estoque movidas para sua própria página -->
   </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const deleteBtn = document.getElementById('deleteAllStockButton');
+  if (!deleteBtn) return;
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm('Tem certeza que deseja apagar todo o estoque? Esta ação não pode ser desfeita.')) return;
+    try {
+      const res = await fetch('/admin/stock', { method: 'DELETE', credentials: 'same-origin', headers: {'Content-Type': 'application/json'} });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || res.statusText);
+      }
+      const data = await res.json();
+      alert('Estoque apagado com sucesso (' + (data.count || 0) + ' registros).');
+      // Atualiza a interface: recarrega a página ou limpa a tabela
+      window.location.reload();
+    } catch (err) {
+      alert('Erro ao apagar estoque: ' + (err.message || err));
+    }
+  });
+});
+</script>
