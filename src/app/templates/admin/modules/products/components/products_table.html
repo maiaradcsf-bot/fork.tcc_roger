@@ -62,17 +62,23 @@ document.addEventListener('DOMContentLoaded', function(){
   deleteBtn.addEventListener('click', async () => {
     if (!confirm('Tem certeza que deseja apagar todo o estoque? Esta ação não pode ser desfeita.')) return;
     try {
-      const res = await fetch('/admin/stock', { method: 'DELETE', credentials: 'same-origin', headers: {'Content-Type': 'application/json'} });
+      // NOTE: admin routes are mounted under /api/admin (api blueprint)
+      const res = await fetch('/api/admin/stock', { method: 'DELETE', credentials: 'same-origin', headers: {'Content-Type': 'application/json'} });
       if (!res.ok) {
-        const txt = await res.text();
+        // try to parse JSON error first, otherwise show text/html (Flask default 404 page)
+        let txt;
+        try { txt = await res.text(); } catch (e) { txt = res.statusText; }
         throw new Error(txt || res.statusText);
       }
       const data = await res.json();
-      alert('Estoque apagado com sucesso (' + (data.count || 0) + ' registros).');
+      const removedCount = (data && (data.stocks_deleted ?? data.count ?? 0)) || 0;
+      alert('Estoque apagado com sucesso (' + removedCount + ' registros).');
       // Atualiza a interface: recarrega a página ou limpa a tabela
       window.location.reload();
     } catch (err) {
       alert('Erro ao apagar estoque: ' + (err.message || err));
+      // também logar no console para debugging
+      console.error('Erro DELETE /api/admin/stock', err);
     }
   });
 });
