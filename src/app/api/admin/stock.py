@@ -49,7 +49,7 @@ def admin_create_stock():
 
 
 @admin_bp.route('/stock', methods=['DELETE'])
-@permission_required('admin.stock.delete')
+@permission_required('admin.stock.moves.delete')
 def admin_delete_all_stock():
     """Apaga todos os registros de stock e stock_moves.
 
