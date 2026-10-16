@@ -57,7 +57,7 @@ def client_orders():
             'canceled_user_id': order.canceled_user_id,
             'canceled_client_id': order.canceled_client_id,
             'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-            'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
+            'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
             'items': [{
                 'product': item.product.name if item.product else None,
                 'product_name': item.product.name if item.product else None,
@@ -115,7 +115,7 @@ def client_get_order(order_id):
         'canceled_user_id': order.canceled_user_id,
         'canceled_client_id': order.canceled_client_id,
         'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-        'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
+        'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
         'items': [{
             'product': item.product.name if item.product else None,
             'product_name': item.product.name if item.product else None,

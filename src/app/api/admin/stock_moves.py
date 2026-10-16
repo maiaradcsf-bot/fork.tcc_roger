@@ -44,7 +44,11 @@ def admin_list_stock_moves():
         'quantity_change': move.quantity_change,
         'reason': move.reason,
         'user_id': move.user_id,
-        'created_at': move.created_at.isoformat()
+        'created_at': move.created_at.isoformat(),
+        'is_reversal': move.is_reversal,
+        'original_move_id': move.original_move_id,
+        'reverted_at': move.reverted_at.isoformat() if move.reverted_at else None,
+        'order_id': move.order_id
     } for move in stock_moves])
 
 
@@ -100,3 +104,38 @@ def admin_create_stock_move():
     db.session.add(move)
     db.session.commit()
     return jsonify({'id': move.id}), 201
+
+
+@admin_bp.route('/stock/moves/<int:move_id>/revert', methods=['POST'])
+@permission_required('admin.stock.moves.delete')
+def admin_revert_stock_move(move_id):
+    user, error, status = admin_required()
+    if error:
+        return error, status
+
+    move = StockMove.query.filter_by(id=move_id).with_for_update().first()
+    if not move:
+        return jsonify({'error': 'Movimentação não encontrada'}), 404
+    if move.is_reversal:
+        return jsonify({'error': 'Não é possível reverter uma movimentação de estorno'}), 400
+    if move.reverted_at:
+        return jsonify({'error': 'Esta movimentação já foi revertida'}), 400
+    if move.order_id:
+        return jsonify({'error': f'Esta movimentação pertence ao pedido #{move.order_id}. Cancele o pedido para devolver o estoque.'}), 400
+
+    stock = Stock.query.filter_by(id=move.stock_id).with_for_update().populate_existing().first()
+    if not stock:
+        return jsonify({'error': 'Estoque não encontrado para esta movimentação'}), 404
+    if (stock.quantity or 0) - move.quantity_change < 0:
+        return jsonify({
+            'error': f'Estoque insuficiente para estornar esta entrada (disponível: {stock.quantity or 0}).',
+            'available': stock.quantity or 0,
+        }), 409
+
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason') or f'Estorno da movimentação #{move.id}'
+
+    reversal = move.revert(user.id, reason)
+    db.session.add(reversal)
+    db.session.commit()
+    return jsonify({'id': reversal.id, 'stock_id': stock.id, 'quantity': stock.quantity}), 201

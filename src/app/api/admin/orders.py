@@ -1,5 +1,5 @@
 from app.api.admin import admin_bp
-from flask import jsonify, request, current_app
+from flask import jsonify, request
 from app.api.utils import normalize_order_status, get_product_by_id, admin_required, permission_required
 from app.models.orders import Order
 from app.models.stock import Stock
@@ -8,6 +8,16 @@ from app.models.order_items import OrderItem
 from app.models import db
 from app.models.status_enums import OrderStatus
 from datetime import datetime
+from sqlalchemy.orm import joinedload
+
+
+def _get_or_create_locked_stock(product):
+    stock = Stock.query.filter_by(product_id=product.id).with_for_update().populate_existing().first()
+    if not stock:
+        stock = Stock(product_id=product.id, quantity=0)
+        db.session.add(stock)
+        db.session.flush()
+    return stock
 
 
 @admin_bp.route('/orders', methods=['GET'])
@@ -57,7 +67,7 @@ def admin_list_orders():
             'canceled_user_id': order.canceled_user_id,
             'canceled_client_id': order.canceled_client_id,
             'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-            'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None)
+            'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None)
         })
 
     return jsonify(result)
@@ -107,7 +117,7 @@ def admin_get_order(order_id):
         'canceled_user_id': order.canceled_user_id,
         'canceled_client_id': order.canceled_client_id,
         'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-        'canceled_by_name': order.canceled_by.name if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
+        'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
         'items': [{
             'product': item.product.name if item.product else None,
             'description': item.product.description if item.product else None,
@@ -146,7 +156,9 @@ def admin_update_order_status(order_id):
     if required_permission and not user.has_permission(required_permission):
         return jsonify({'error': 'Permissão insuficiente'}), 403
 
-    order = Order.query.get(order_id)
+    order = Order.query.options(
+        joinedload(Order.items).joinedload(OrderItem.product)
+    ).filter(Order.id == order_id).with_for_update().one_or_none()
     if not order:
         return jsonify({'error': 'Pedido não encontrado'}), 404
 
@@ -174,7 +186,7 @@ def admin_update_order_status(order_id):
     allowed_transitions = {
         OrderStatus.PENDING.value: {OrderStatus.APPROVED.value, OrderStatus.REJECTED.value, OrderStatus.CANCELLED.value},
         OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value, OrderStatus.CANCELLED.value},
-        OrderStatus.FINISHED.value: set(),
+        OrderStatus.FINISHED.value: {OrderStatus.CANCELLED.value},
         OrderStatus.REJECTED.value: set(),
         OrderStatus.CANCELLED.value: set(),
     }
@@ -183,37 +195,63 @@ def admin_update_order_status(order_id):
 
     current_time = datetime.utcnow()
 
-    # If transition to 'finished', apply stock changes and create StockMoves
+    client_name = (order.client.name if getattr(order, 'client', None) and getattr(order.client, 'name', None) else 'Desconhecido')
+
+    # Finishing withdraws the items from stock; if stock is short the request is refused
+    # unless the admin explicitly accepts withdrawing only what is available (allow_partial)
     if new_status == OrderStatus.FINISHED.value and new_status != current_status:
-        try:
-            for item in order.items or []:
-                product = item.product
-                if not product:
-                    continue
+        requested_by_product = {}
+        for item in order.items or []:
+            if not item.product:
+                continue
+            entry = requested_by_product.setdefault(item.product.id, {'product': item.product, 'requested': 0})
+            entry['requested'] += int(item.quantity or 0)
 
-                stock = product.stock
-                if not stock:
-                    stock = Stock(product_id=product.id, quantity=0)
-                    db.session.add(stock)
-                    db.session.flush()
+        withdrawals = []
+        shortages = []
+        for entry in requested_by_product.values():
+            product = entry['product']
+            stock = _get_or_create_locked_stock(product)
+            available = max(stock.quantity or 0, 0)
+            requested = entry['requested']
+            if requested > available:
+                shortages.append({
+                    'product_id': product.id,
+                    'product_name': product.name,
+                    'requested': requested,
+                    'available': available,
+                })
+            withdrawals.append((stock, min(requested, available)))
 
-                qty = int(item.quantity or 0)
-                quantity_change_int = -qty
-                old_qty = stock.quantity or 0
-                stock.quantity = max((stock.quantity or 0) + quantity_change_int, 0)
-                try:
-                    current_app.logger.info(f"[StockChange] order_finish order_id={order.id} stock_id={stock.id} product_id={product.id} {old_qty} -> {stock.quantity} change={quantity_change_int}")
-                except Exception:
-                    pass
-
-                move_type = 'entrada' if quantity_change_int > 0 else 'saida'
-                client_name = (order.client.name if getattr(order, 'client', None) and getattr(order.client, 'name', None) else 'Desconhecido')
-                reason = f'Solicitação de retirada #{order.id}, Cliente #{order.client_id} - {client_name}'
-                move = StockMove(stock=stock, quantity_change=quantity_change_int, reason=reason, move_type=move_type, user_id=user.id)
-                db.session.add(move)
-        except Exception as e:
+        if shortages and not data.get('allow_partial'):
             db.session.rollback()
-            return jsonify({'error': 'Falha ao aplicar alterações de estoque', 'details': str(e)}), 500
+            return jsonify({
+                'error': 'Estoque insuficiente para concluir a retirada',
+                'code': 'insufficient_stock',
+                'shortages': shortages,
+            }), 409
+
+        reason = f'Solicitação de retirada #{order.id}, Cliente #{order.client_id} - {client_name}'
+        for stock, quantity in withdrawals:
+            if quantity <= 0:
+                continue
+            stock.quantity = (stock.quantity or 0) - quantity
+            db.session.add(StockMove(
+                stock=stock, quantity_change=-quantity, reason=reason,
+                move_type='saida', user_id=user.id, order_id=order.id,
+            ))
+
+    # Cancelling a finished order returns exactly what its withdrawals took out of stock
+    if new_status == OrderStatus.CANCELLED.value and current_status == OrderStatus.FINISHED.value:
+        withdrawals = StockMove.query.filter(
+            StockMove.order_id == order.id,
+            StockMove.is_reversal.is_(False),
+            StockMove.reverted_at.is_(None),
+        ).with_for_update().all()
+        reason = f'Estorno de estoque - pedido #{order.id} cancelado após retirada, Cliente #{order.client_id} - {client_name}'
+        for move in withdrawals:
+            Stock.query.filter_by(id=move.stock_id).with_for_update().populate_existing().first()
+            db.session.add(move.revert(user.id, reason))
 
     if new_status == OrderStatus.APPROVED.value and new_status != current_status:
         order.approved_user_id = user.id

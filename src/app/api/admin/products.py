@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import datetime
 from app.api.admin import admin_bp
 from flask import jsonify, request
 from app.api.utils import admin_required, permission_required, get_active_products, get_product_by_id, UPLOAD_FOLDER, allowed_file
@@ -192,3 +193,22 @@ def admin_delete_product(product_id):
     product.soft_delete()
     db.session.commit()
     return jsonify({'message': 'Produto excluído'})
+
+
+@admin_bp.route('/products/delete-all', methods=['DELETE'])
+@permission_required('admin.products.delete')
+def admin_delete_all_products():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+
+    product_ids = [product.id for product in get_active_products()]
+
+    # Soft delete only: stock rows, stock move history and order items keep pointing at the products
+    if product_ids:
+        Product.query.filter(Product.id.in_(product_ids)).update(
+            {Product.deleted_at: datetime.utcnow()}, synchronize_session=False
+        )
+
+    db.session.commit()
+    return jsonify({'message': 'Todos os produtos foram excluídos. O histórico de estoque foi preservado.', 'deleted_count': len(product_ids)})

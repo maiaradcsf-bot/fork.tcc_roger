@@ -7,7 +7,7 @@ let clientOrdersChartRange = 7;
 const OPEN_CART_STATUSES = ['open'];
 
 function getClientToken() {
-  return localStorage.getItem('client_token');
+  return window.appUtils.getStoredToken('client_token');
 }
 
 function hasClientPermission(permissionName) {
@@ -39,27 +39,15 @@ async function loadClientPermissions() {
 }
 
 function showAlert(type, message) {
-  const container = document.getElementById('alertContainer');
-  if (!container) return;
-  const el = document.createElement('div');
-  el.className = `alert alert-${type} alert-dismissible fade show`;
-  el.role = 'alert';
-  el.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>`;
-  container.innerHTML = '';
-  container.appendChild(el);
+  return window.appUtils.showAlert(type, message, 'alertContainer');
 }
 
 function formatPrice(v) {
-  return `R$ ${Number(v || 0).toFixed(2)}`;
+  return window.appUtils.formatPrice(v);
 }
 
 function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+  return window.appUtils.escapeHtml(value);
 }
 
 function normalizeClientOrderStatus(status) {
@@ -895,6 +883,7 @@ window.clientLogout = function() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  setupModuleSearch();
   await loadClientPermissions();
   loadSummary();
   loadProducts();

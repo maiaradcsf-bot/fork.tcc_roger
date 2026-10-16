@@ -1,41 +1,39 @@
 const API_BASE_URL = '/api/admin';
+const $id = (id) => document.getElementById(id);
+const ORDER_STATUS_GROUPS = {
+  pending: ['pending', 'initial', 'inicial', 'pendent', 'pendente'],
+  approved: ['approved', 'aprovado'],
+  finished: ['finished', 'completed', 'concluido', 'concluído', 'retirado'],
+  rejected: ['rejected', 'rejeitado', 'rejeitada'],
+  cancelled: ['cancelled', 'cancelado', 'canceled'],
+};
 let productPhotoURL = ''; // Armazenar URL da imagem carregada
-const alertContainer = document.getElementById('alertContainer');
-const ordersTableBody = document.getElementById('ordersTableBody');
-const categoriesTableBody = document.getElementById('categoriesTableBody');
-const productsTableBody = document.getElementById('productsTableBody');
-const stockMovesTableBody = document.getElementById('stockMovesTableBody');
-const clientsTableBody = document.getElementById('clientsTableBody');
-const logoutButton = document.getElementById('logoutButton');
-const summaryOrders = document.getElementById('summaryOrders');
-const summaryCategories = document.getElementById('summaryCategories');
-const summaryProducts = document.getElementById('summaryProducts');
-const summaryClients = document.getElementById('summaryClients');
-const summaryPendingOrders = document.getElementById('summaryPendingOrders');
-const summaryStock = document.getElementById('summaryStock');
-const summaryLowStock = document.getElementById('summaryLowStock');
-const clientsOrdersCount = document.getElementById('clientsOrdersCount');
-const clientsOrdersQuantity = document.getElementById('clientsOrdersQuantity');
-const clientsOrdersProducts = document.getElementById('clientsOrdersProducts');
-const clientDetailName = document.getElementById('clientDetailName');
-const clientDetailEmail = document.getElementById('clientDetailEmail');
-const clientDetailPhone = document.getElementById('clientDetailPhone');
-const clientDetailOrdersList = document.getElementById('clientDetailOrdersList');
+const alertContainer = $id('alertContainer');
+const ordersTableBody = $id('ordersTableBody');
+const categoriesTableBody = $id('categoriesTableBody');
+const productsTableBody = $id('productsTableBody');
+const stockMovesTableBody = $id('stockMovesTableBody');
+const clientsTableBody = $id('clientsTableBody');
+const summaryOrders = $id('summaryOrders');
+const summaryCategories = $id('summaryCategories');
+const summaryProducts = $id('summaryProducts');
+const summaryClients = $id('summaryClients');
+const summaryPendingOrders = $id('summaryPendingOrders');
+const summaryStock = $id('summaryStock');
+const summaryLowStock = $id('summaryLowStock');
+const clientDetailName = $id('clientDetailName');
+const clientDetailEmail = $id('clientDetailEmail');
+const clientDetailPhone = $id('clientDetailPhone');
+const clientDetailOrdersList = $id('clientDetailOrdersList');
 
-const settingsUsersTableBody = document.getElementById('settingsUsersTableBody');
-const settingsPermissionsTableBody = document.getElementById('settingsPermissionsTableBody');
-const settingsProfilesTableBody = document.getElementById('settingsProfilesTableBody');
-const settingsUserForm = document.getElementById('settingsUserForm');
-const settingsPermissionForm = document.getElementById('settingsPermissionForm');
-const settingsProfileForm = document.getElementById('settingsProfileForm');
-const settingsUserRulesSelect = document.getElementById('settingsUserRulesSelect');
-const settingsProfilePermissionsSelect = document.getElementById('settingsProfilePermissionsSelect');
-const newSettingsUserButton = document.getElementById('newSettingsUserButton');
-const refreshSettingsUsersButton = document.getElementById('refreshSettingsUsersButton');
-const newSettingsPermissionButton = document.getElementById('newSettingsPermissionButton');
-const refreshSettingsPermissionsButton = document.getElementById('refreshSettingsPermissionsButton');
-const newSettingsProfileButton = document.getElementById('newSettingsProfileButton');
-const refreshSettingsProfilesButton = document.getElementById('refreshSettingsProfilesButton');
+const settingsUsersTableBody = $id('settingsUsersTableBody');
+const settingsPermissionsTableBody = $id('settingsPermissionsTableBody');
+const settingsProfilesTableBody = $id('settingsProfilesTableBody');
+const settingsUserForm = $id('settingsUserForm');
+const settingsPermissionForm = $id('settingsPermissionForm');
+const settingsProfileForm = $id('settingsProfileForm');
+const settingsUserRulesSelect = $id('settingsUserRulesSelect');
+const settingsProfilePermissionsSelect = $id('settingsProfilePermissionsSelect');
 
 let settingsUsersCache = [];
 let settingsPermissionsCache = [];
@@ -64,15 +62,15 @@ let importState = {
   completed: false,
 };
 
-logoutButton?.addEventListener('click', handleLogout);
+$id('logoutButton')?.addEventListener('click', handleLogout);
 
 function getAuthToken() {
-  return localStorage.getItem('admin_token');
+  return window.appUtils.getStoredToken('admin_token');
 }
 
 function setStockFilterRange(days, shouldLoad = false) {
-  const stockStartDate = document.getElementById('stockStartDate');
-  const stockEndDate = document.getElementById('stockEndDate');
+  const stockStartDate = $id('stockStartDate');
+  const stockEndDate = $id('stockEndDate');
   const today = new Date();
   const end = today.toISOString().slice(0, 10);
   const startDateObj = new Date();
@@ -86,41 +84,54 @@ function setStockFilterRange(days, shouldLoad = false) {
 }
 
 async function loadStockMoves(button = null) {
-  const tableBody = document.getElementById('stockMovesTableBody');
+  const tableBody = $id('stockMovesTableBody');
   if (!tableBody) return;
-  renderTablePlaceholder(tableBody, 4, 'Carregando movimentações...');
+  renderTablePlaceholder(tableBody, 5, 'Carregando movimentações...');
   setLoadingState(button, true);
 
   try {
     const params = [];
-    const start = document.getElementById('stockStartDate')?.value;
-    const end = document.getElementById('stockEndDate')?.value;
+    const start = $id('stockStartDate')?.value;
+    const end = $id('stockEndDate')?.value;
     if (start) params.push(`start_date=${encodeURIComponent(start)}`);
     if (end) params.push(`end_date=${encodeURIComponent(end)}`);
     const url = `/stock/moves${params.length ? '?' + params.join('&') : ''}`;
     const stockMoves = await fetchJson(url);
     if (Array.isArray(stockMoves) && stockMoves.length > 0) {
       tableBody.innerHTML = stockMoves
-        .map((move) => `
+        .map((move) => {
+          let actionCell = '—';
+          if (move.is_reversal) {
+            actionCell = '<span class="text-muted">Estorno</span>';
+          } else if (move.reverted_at) {
+            actionCell = '<span class="text-muted">Revertida</span>';
+          } else if (move.order_id) {
+            actionCell = `<span class="text-muted">Pedido #${move.order_id}</span>`;
+          } else if (hasAdminPermission('admin.stock.moves.delete')) {
+            actionCell = `<button type="button" class="btn btn-outline-warning btn-sm" onclick="revertStockMove(${move.id})"><i class="bi bi-arrow-counterclockwise me-1"></i>Voltar ao estoque</button>`;
+          }
+          return `
           <tr>
             <td>${move.product_name || move.product_id || move.stock_id || '—'}</td>
             <td>${move.quantity_change || '—'}</td>
             <td>${move.reason || '—'}</td>
             <td>${formatDate(move.created_at)}</td>
+            <td class="text-center">${actionCell}</td>
           </tr>
-        `)
+        `;
+        })
         .join('');
     } else {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="4" class="text-center py-5 text-muted">Nenhuma movimentação de estoque encontrada.</td>
+          <td colspan="5" class="text-center py-5 text-muted">Nenhuma movimentação de estoque encontrada.</td>
         </tr>
       `;
     }
   } catch (error) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="4" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
+        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar movimentações: ${error.message}`);
@@ -130,19 +141,11 @@ async function loadStockMoves(button = null) {
 }
 
 function buildAuthHeader() {
-  const token = getAuthToken();
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
+  return window.appUtils.buildAuthHeader(getAuthToken());
 }
 
 function escapeHtml(value) {
-  if (value === null || value === undefined) return '';
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return window.appUtils.escapeHtml(value);
 }
 
 function hasAdminPermission(permissionName) {
@@ -177,80 +180,36 @@ function handleLogout() {
 }
 
 function showAlert(type, message) {
-  if (!alertContainer) return;
-
-  const alertElement = document.createElement('div');
-  alertElement.className = `alert alert-${type} alert-dismissible fade show`;
-  alertElement.setAttribute('role', 'alert');
-  alertElement.innerHTML = `
-    <div>${message}</div>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  `;
-
-  alertContainer.appendChild(alertElement);
-
-  setTimeout(() => {
-    if (alertElement.parentNode) {
-      const bsAlert = bootstrap.Alert.getOrCreateInstance(alertElement);
-      bsAlert.close();
-    }
-  }, 7000);
+  return window.appUtils.showAlert(type, message, alertContainer);
 }
 
 function setLoadingState(button, loading) {
-  if (!button) return;
-  if (loading) {
-    button.disabled = true;
-    button.dataset.originalContent = button.innerHTML;
-    button.innerHTML = `
-      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-      Carregando...
-    `;
-  } else {
-    button.disabled = false;
-    if (button.dataset.originalContent) {
-      button.innerHTML = button.dataset.originalContent;
-      delete button.dataset.originalContent;
-    }
-  }
+  return window.appUtils.setLoadingState(button, loading);
 }
 
 function renderTablePlaceholder(container, colspan, message = 'Carregando dados...') {
-  if (!container) return;
-  container.innerHTML = `
-    <tr>
-      <td colspan="${colspan}" class="text-center py-5 text-muted">${message}</td>
-    </tr>
-  `;
+  return window.appUtils.renderTablePlaceholder(container, colspan, message);
 }
 
 function formatDate(dateString) {
-  if (!dateString) return '—';
-  const date = new Date(dateString);
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return window.appUtils.formatDate(dateString);
 }
 
 function createStatusBadge(status) {
   const normalized = (status || '').toString().toLowerCase();
-  if (['approved', 'aprovado'].includes(normalized)) {
+  if (ORDER_STATUS_GROUPS.approved.includes(normalized)) {
     return '<span class="badge bg-info text-dark status-badge">Aprovado (aguardando retirada)</span>';
   }
-  if (['rejected', 'rejeitado', 'rejeitada'].includes(normalized)) {
+  if (ORDER_STATUS_GROUPS.rejected.includes(normalized)) {
     return '<span class="badge bg-danger status-badge">Rejeitado</span>';
   }
-  if (['finished', 'completed', 'concluido', 'concluído', 'retirado'].includes(normalized)) {
+  if (ORDER_STATUS_GROUPS.finished.includes(normalized)) {
     return '<span class="badge bg-primary status-badge">Retirado</span>';
   }
-  if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalized)) {
+  if (ORDER_STATUS_GROUPS.pending.includes(normalized)) {
     return '<span class="badge bg-warning text-dark status-badge">Pendente (aguardando aprovação)</span>';
   }
-  if (['cancelled', 'cancelado', 'canceled'].includes(normalized)) {
+  if (ORDER_STATUS_GROUPS.cancelled.includes(normalized)) {
     return '<span class="badge bg-secondary status-badge">Cancelado</span>';
   }
   return `<span class="badge bg-secondary status-badge">${(status || 'Desconhecido').toString().replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase())}</span>`;
@@ -276,7 +235,10 @@ async function fetchJson(path, init = {}) {
       showAlert('warning', 'Sessão expirada. Faça login novamente.');
       setTimeout(handleLogout, 1800);
     }
-    throw new Error(errorData?.error || `Erro ${response.status} ao acessar ${path}`);
+    const error = new Error(errorData?.error || `Erro ${response.status} ao acessar ${path}`);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
 
   return response.json().catch(() => null);
@@ -311,7 +273,7 @@ async function loadDashboardSummary() {
     renderLowStockList(lowStockProducts);
     if (summaryPendingOrders) {
       const pendingCount = Array.isArray(orders)
-        ? orders.filter((order) => ['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes((order.status || '').toString().toLowerCase())).length
+        ? orders.filter((order) => ORDER_STATUS_GROUPS.pending.includes((order.status || '').toString().toLowerCase())).length
         : '—';
       summaryPendingOrders.textContent = pendingCount;
     }
@@ -353,7 +315,7 @@ async function loadOrders(button = null) {
 
         const normalizedStatus = (order.status || '').toString().toLowerCase();
         const actionButtons = [];
-        if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus)) {
+        if (ORDER_STATUS_GROUPS.pending.includes(normalizedStatus)) {
           if (hasAdminPermission('admin.orders.approve')) {
             actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${order.id}, 'approve', this)">Aprovar</button>`);
           }
@@ -364,12 +326,17 @@ async function loadOrders(button = null) {
             actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
           }
         }
-        if (['approved', 'aprovado'].includes(normalizedStatus)) {
+        if (ORDER_STATUS_GROUPS.approved.includes(normalizedStatus)) {
           if (hasAdminPermission('admin.orders.approve')) {
             actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${order.id}, 'finish', this)">Retirado</button>`);
           }
           if (hasAdminPermission('admin.orders.cancel')) {
             actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+          }
+        }
+        if (ORDER_STATUS_GROUPS.finished.includes(normalizedStatus)) {
+          if (hasAdminPermission('admin.orders.cancel')) {
+            actionButtons.push(`<button type="button" class="btn btn-outline-warning" onclick="openOrderActionConfirm(${order.id}, 'cancel', this, true)"><i class="bi bi-arrow-counterclockwise me-1"></i>Devolver ao estoque</button>`);
           }
         }
 
@@ -405,7 +372,7 @@ async function loadOrders(button = null) {
 }
 
 function renderLowStockList(items) {
-  const container = document.getElementById('lowStockList');
+  const container = $id('lowStockList');
   if (!container) return;
   if (!Array.isArray(items) || items.length === 0) {
     container.innerHTML = '<div class="text-muted">Nenhum produto próximo do estoque mínimo.</div>';
@@ -442,7 +409,7 @@ async function openStockMoveForProduct(productId) {
     const matching = Array.isArray(stockItems) ? stockItems.find((s) => Number(s.product_id) === Number(productId)) : null;
     await loadStockItems();
     if (matching) {
-      const select = document.getElementById('stockItemSelect');
+      const select = $id('stockItemSelect');
       if (select) select.value = matching.id;
     }
     openStockMoveModal();
@@ -451,23 +418,31 @@ async function openStockMoveForProduct(productId) {
   }
 }
 
-function openOrderActionConfirm(orderId, action, button) {
-  const modal = document.getElementById('orderActionConfirmModal');
-  const message = document.getElementById('orderActionConfirmMessage');
-  const confirmButton = document.getElementById('orderActionConfirmButton');
+const ORDER_ACTION_CONFIRM_CONFIGS = {
+  approve: { text: 'aprovar', className: 'btn btn-primary', buttonText: 'Confirmar' },
+  reject: { text: 'rejeitar', className: 'btn btn-danger', buttonText: 'Confirmar' },
+  cancel: { text: 'cancelar', className: 'btn btn-outline-danger', buttonText: 'Confirmar' },
+  finish: { text: 'marcar como retirado', className: 'btn btn-primary', buttonText: 'Retirado' },
+};
+
+function openOrderActionConfirm(orderId, action, button, restoresStock = false) {
+  const modal = $id('orderActionConfirmModal');
+  const message = $id('orderActionConfirmMessage');
+  const confirmButton = $id('orderActionConfirmButton');
   if (!modal || !message || !confirmButton) return;
 
-  const actionText = {
-    approve: 'aprovar',
-    reject: 'rejeitar',
-    cancel: 'cancelar',
-    finish: 'marcar como retirado'
-  }[action] || 'realizar esta ação';
-
   pendingOrderAction = { orderId, action, button };
-  message.textContent = `Tem certeza que deseja ${actionText} esta solicitação?`;
-  confirmButton.className = action === 'reject' ? 'btn btn-danger' : action === 'cancel' ? 'btn btn-outline-danger' : 'btn btn-primary';
-  confirmButton.textContent = action === 'finish' ? 'Retirado' : 'Confirmar';
+
+  if (restoresStock) {
+    message.textContent = 'Tem certeza que deseja cancelar esta solicitação já retirada? A quantidade baixada será devolvida ao estoque automaticamente.';
+    confirmButton.className = 'btn btn-warning text-dark';
+    confirmButton.textContent = 'Devolver ao estoque';
+  } else {
+    const config = ORDER_ACTION_CONFIRM_CONFIGS[action] || { text: 'realizar esta ação', className: 'btn btn-primary', buttonText: 'Confirmar' };
+    message.textContent = `Tem certeza que deseja ${config.text} esta solicitação?`;
+    confirmButton.className = config.className;
+    confirmButton.textContent = config.buttonText;
+  }
 
   bootstrap.Modal.getOrCreateInstance(modal).show();
 }
@@ -476,20 +451,20 @@ async function confirmOrderAction() {
   if (!pendingOrderAction) return;
   const { orderId, action, button } = pendingOrderAction;
   pendingOrderAction = null;
-  document.getElementById('orderActionConfirmModal')?.querySelector('[data-bs-dismiss]')?.click();
+  $id('orderActionConfirmModal')?.querySelector('[data-bs-dismiss]')?.click();
   await handleAdminOrderAction(orderId, action, button);
 }
 
 async function openOrderDetailModal(orderId) {
-  const modalLabel = document.getElementById('orderDetailModalLabel');
-  const clientField = document.getElementById('orderDetailClient');
-  const statusField = document.getElementById('orderDetailStatus');
-  const totalField = document.getElementById('orderDetailTotal');
-  const reasonRow = document.getElementById('orderDetailReasonRow');
-  const reasonField = document.getElementById('orderDetailReason');
-  const createdAtField = document.getElementById('orderDetailCreatedAt');
-  const auditContainer = document.getElementById('orderDetailAudit');
-  const itemsBody = document.getElementById('orderDetailItemsBody');
+  const modalLabel = $id('orderDetailModalLabel');
+  const clientField = $id('orderDetailClient');
+  const statusField = $id('orderDetailStatus');
+  const totalField = $id('orderDetailTotal');
+  const reasonRow = $id('orderDetailReasonRow');
+  const reasonField = $id('orderDetailReason');
+  const createdAtField = $id('orderDetailCreatedAt');
+  const auditContainer = $id('orderDetailAudit');
+  const itemsBody = $id('orderDetailItemsBody');
 
   if (!modalLabel || !clientField || !statusField || !totalField || !reasonRow || !reasonField || !createdAtField || !auditContainer || !itemsBody) return;
 
@@ -558,7 +533,7 @@ async function openOrderDetailModal(orderId) {
         .join('');
     }
 
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('orderDetailModal')).show();
+    bootstrap.Modal.getOrCreateInstance($id('orderDetailModal')).show();
   } catch (error) {
     showAlert('danger', `Erro ao carregar detalhes do pedido: ${error.message}`);
     itemsBody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-danger">Erro ao carregar detalhes.</td></tr>`;
@@ -678,7 +653,7 @@ async function loadProducts(button = null) {
     if (stockMovesTableBody) {
       stockMovesTableBody.innerHTML = `
         <tr>
-          <td colspan="4" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
+          <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
         </tr>
       `;
     }
@@ -718,7 +693,7 @@ function getVisibleExportProducts() {
 }
 
 function renderExportColumnsList() {
-  const container = document.getElementById('exportColumnsList');
+  const container = $id('exportColumnsList');
   if (!container) return;
   container.innerHTML = EXPORT_FIELD_DEFS.map((field) => `
     <div class="form-check">
@@ -738,14 +713,14 @@ function escapeCsvValue(value) {
 
 function openExportModal() {
   const visibleProducts = getVisibleExportProducts();
-  const countEl = document.getElementById('exportProductsCount');
+  const countEl = $id('exportProductsCount');
   if (countEl) countEl.textContent = visibleProducts.length;
   renderExportColumnsList();
   openModal('exportProductsModal');
 }
 
 function exportProductsToCsv() {
-  const container = document.getElementById('exportColumnsList');
+  const container = $id('exportColumnsList');
   const selectedKeys = Array.from(container?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => input.value);
   if (!selectedKeys.length) {
     showAlert('warning', 'Selecione ao menos uma coluna para exportar.');
@@ -774,7 +749,7 @@ function exportProductsToCsv() {
   link.remove();
   URL.revokeObjectURL(url);
 
-  bootstrap.Modal.getInstance(document.getElementById('exportProductsModal'))?.hide();
+  bootstrap.Modal.getInstance($id('exportProductsModal'))?.hide();
   showAlert('success', `${products.length} produto(s) exportado(s) com sucesso.`);
 }
 
@@ -822,7 +797,6 @@ async function loadClients(button = null) {
     setLoadingState(button, false);
   }
 }
-
 
 function renderClientOrdersList(orders) {
   if (!clientDetailOrdersList) return;
@@ -1079,7 +1053,7 @@ async function loadSettingsProfiles(button = null) {
 }
 
 function openModalById(modalId) {
-  const element = document.getElementById(modalId);
+  const element = $id(modalId);
   if (!element) return null;
   const modal = new bootstrap.Modal(element);
   modal.show();
@@ -1087,11 +1061,11 @@ function openModalById(modalId) {
 }
 
 async function openSettingsUserModal(mode, userId = null) {
-  const title = document.getElementById('settingsUserModalLabel');
-  const userIdField = document.getElementById('settingsUserId');
-  const usernameField = document.getElementById('settingsUserUsername');
-  const emailField = document.getElementById('settingsUserEmail');
-  const passwordField = document.getElementById('settingsUserPassword');
+  const title = $id('settingsUserModalLabel');
+  const userIdField = $id('settingsUserId');
+  const usernameField = $id('settingsUserUsername');
+  const emailField = $id('settingsUserEmail');
+  const passwordField = $id('settingsUserPassword');
 
   if (!title || !userIdField || !usernameField || !emailField || !passwordField) return;
 
@@ -1123,10 +1097,10 @@ async function saveSettingsUser(event) {
   if (!settingsUserForm) return;
   event.preventDefault();
 
-  const userId = document.getElementById('settingsUserId').value;
-  const username = document.getElementById('settingsUserUsername').value.trim();
-  const email = document.getElementById('settingsUserEmail').value.trim();
-  const password = document.getElementById('settingsUserPassword').value;
+  const userId = $id('settingsUserId').value;
+  const username = $id('settingsUserUsername').value.trim();
+  const email = $id('settingsUserEmail').value.trim();
+  const password = $id('settingsUserPassword').value;
   const ruleIds = Array.from(settingsUserRulesSelect?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => Number(input.value));
   const submitButton = event.submitter || settingsUserForm.querySelector('button[type="submit"]');
 
@@ -1159,7 +1133,7 @@ async function saveSettingsUser(event) {
       });
       showAlert('success', 'Usuário criado com sucesso.');
     }
-    bootstrap.Modal.getInstance(document.getElementById('settingsUserModal'))?.hide();
+    bootstrap.Modal.getInstance($id('settingsUserModal'))?.hide();
     await loadSettingsUsers();
   } catch (error) {
     showAlert('danger', `Erro ao salvar usuário: ${error.message}`);
@@ -1180,10 +1154,10 @@ async function deleteSettingsUser(userId) {
 }
 
 function openSettingsPermissionModal(mode, permissionId = null) {
-  const title = document.getElementById('settingsPermissionModalLabel');
-  const idField = document.getElementById('settingsPermissionId');
-  const nameField = document.getElementById('settingsPermissionName');
-  const descField = document.getElementById('settingsPermissionDescription');
+  const title = $id('settingsPermissionModalLabel');
+  const idField = $id('settingsPermissionId');
+  const nameField = $id('settingsPermissionName');
+  const descField = $id('settingsPermissionDescription');
 
   if (!title || !idField || !nameField || !descField) return;
 
@@ -1211,9 +1185,9 @@ async function saveSettingsPermission(event) {
   if (!settingsPermissionForm) return;
   event.preventDefault();
 
-  const permissionId = document.getElementById('settingsPermissionId').value;
-  const name = document.getElementById('settingsPermissionName').value.trim();
-  const description = document.getElementById('settingsPermissionDescription').value.trim();
+  const permissionId = $id('settingsPermissionId').value;
+  const name = $id('settingsPermissionName').value.trim();
+  const description = $id('settingsPermissionDescription').value.trim();
   const submitButton = event.submitter || settingsPermissionForm.querySelector('button[type="submit"]');
 
   if (!name) {
@@ -1240,7 +1214,7 @@ async function saveSettingsPermission(event) {
       });
       showAlert('success', 'Permissão criada com sucesso.');
     }
-    bootstrap.Modal.getInstance(document.getElementById('settingsPermissionModal'))?.hide();
+    bootstrap.Modal.getInstance($id('settingsPermissionModal'))?.hide();
     await loadSettingsPermissions();
   } catch (error) {
     showAlert('danger', `Erro ao salvar permissão: ${error.message}`);
@@ -1261,10 +1235,10 @@ async function deleteSettingsPermission(permissionId) {
 }
 
 async function openSettingsProfileModal(mode, profileId = null) {
-  const title = document.getElementById('settingsProfileModalLabel');
-  const idField = document.getElementById('settingsProfileId');
-  const nameField = document.getElementById('settingsProfileName');
-  const descField = document.getElementById('settingsProfileDescription');
+  const title = $id('settingsProfileModalLabel');
+  const idField = $id('settingsProfileId');
+  const nameField = $id('settingsProfileName');
+  const descField = $id('settingsProfileDescription');
 
   if (!title || !idField || !nameField || !descField) return;
 
@@ -1294,9 +1268,9 @@ async function saveSettingsProfile(event) {
   if (!settingsProfileForm) return;
   event.preventDefault();
 
-  const profileId = document.getElementById('settingsProfileId').value;
-  const name = document.getElementById('settingsProfileName').value.trim();
-  const description = document.getElementById('settingsProfileDescription').value.trim();
+  const profileId = $id('settingsProfileId').value;
+  const name = $id('settingsProfileName').value.trim();
+  const description = $id('settingsProfileDescription').value.trim();
   const permissionIds = Array.from(settingsProfilePermissionsSelect?.querySelectorAll('input[type="checkbox"]:checked') || []).map((input) => Number(input.value));
   const submitButton = event.submitter || settingsProfileForm.querySelector('button[type="submit"]');
 
@@ -1324,7 +1298,7 @@ async function saveSettingsProfile(event) {
       });
       showAlert('success', 'Perfil criado com sucesso.');
     }
-    bootstrap.Modal.getInstance(document.getElementById('settingsProfileModal'))?.hide();
+    bootstrap.Modal.getInstance($id('settingsProfileModal'))?.hide();
     await loadSettingsProfiles();
   } catch (error) {
     showAlert('danger', `Erro ao salvar perfil: ${error.message}`);
@@ -1345,7 +1319,7 @@ async function deleteSettingsProfile(profileId) {
 }
 
 async function loadStockItems() {
-  const stockItemSelect = document.getElementById('stockItemSelect');
+  const stockItemSelect = $id('stockItemSelect');
   if (!stockItemSelect) return;
 
   stockItemSelect.innerHTML = '<option value="">Carregando...</option>';
@@ -1370,7 +1344,7 @@ async function loadStockItems() {
 }
 
 async function loadCategoryOptions(selectedId = null, currentCategoryId = null) {
-  const categoryParent = document.getElementById('categoryParent');
+  const categoryParent = $id('categoryParent');
   if (!categoryParent) return;
 
   categoryParent.innerHTML = '<option value="">Nenhuma (Categoria Principal)</option>';
@@ -1399,7 +1373,7 @@ async function loadCategoryOptions(selectedId = null, currentCategoryId = null) 
 }
 
 async function loadProductCategoryOptions(selectedIds = []) {
-  const productCategoriesSelect = document.getElementById('productCategories');
+  const productCategoriesSelect = $id('productCategories');
   if (!productCategoriesSelect) return;
 
   try {
@@ -1432,7 +1406,7 @@ async function loadProductCategoryOptions(selectedIds = []) {
 }
 
 function openModal(modalId) {
-  const element = document.getElementById(modalId);
+  const element = $id(modalId);
   if (!element) return null;
   const modal = new bootstrap.Modal(element);
   modal.show();
@@ -1440,10 +1414,10 @@ function openModal(modalId) {
 }
 
 async function openCategoryModal(mode, categoryId = null) {
-  const modalTitle = document.getElementById('categoryModalLabel');
-  const categoryIdField = document.getElementById('categoryId');
-  const nameField = document.getElementById('categoryName');
-  const descField = document.getElementById('categoryDescription');
+  const modalTitle = $id('categoryModalLabel');
+  const categoryIdField = $id('categoryId');
+  const nameField = $id('categoryName');
+  const descField = $id('categoryDescription');
 
   if (!modalTitle || !categoryIdField || !nameField || !descField) return;
 
@@ -1471,12 +1445,12 @@ async function openCategoryModal(mode, categoryId = null) {
 }
 
 async function saveCategory(event) {
-  if (!document.getElementById('categoryForm')) return;
+  if (!$id('categoryForm')) return;
   event.preventDefault();
-  const categoryId = document.getElementById('categoryId').value;
-  const name = document.getElementById('categoryName').value.trim();
-  const description = document.getElementById('categoryDescription').value.trim();
-  const parentId = document.getElementById('categoryParent').value || null;
+  const categoryId = $id('categoryId').value;
+  const name = $id('categoryName').value.trim();
+  const description = $id('categoryDescription').value.trim();
+  const parentId = $id('categoryParent').value || null;
   const submitButton = event.submitter || document.querySelector('#categoryForm button[type="submit"]');
 
   if (!name) {
@@ -1503,7 +1477,7 @@ async function saveCategory(event) {
       });
       showAlert('success', 'Categoria criada com sucesso.');
     }
-    bootstrap.Modal.getInstance(document.getElementById('categoryModal'))?.hide();
+    bootstrap.Modal.getInstance($id('categoryModal'))?.hide();
     await loadCategories();
   } catch (error) {
     showAlert('danger', `Erro ao salvar categoria: ${error.message}`);
@@ -1531,24 +1505,24 @@ function deleteProduct(productId, productName = null) {
 }
 
 async function openProductModal(mode, productId = null) {
-  const modalTitle = document.getElementById('productModalLabel');
-  const idField = document.getElementById('productId');
-  const nameField = document.getElementById('productName');
-  const barcodeField = document.getElementById('productBarcode');
-  const minStockField = document.getElementById('productMinStock');
-  const maxStockField = document.getElementById('productMaxStock');
-  const descField = document.getElementById('productDescription');
-  const priceField = document.getElementById('productPrice');
-  const photoField = document.getElementById('productPhoto');
-  const photoPreview = document.getElementById('productPhotoPreview');
-  const stockField = document.getElementById('productStock');
+  const modalTitle = $id('productModalLabel');
+  const idField = $id('productId');
+  const nameField = $id('productName');
+  const barcodeField = $id('productBarcode');
+  const minStockField = $id('productMinStock');
+  const maxStockField = $id('productMaxStock');
+  const descField = $id('productDescription');
+  const priceField = $id('productPrice');
+  const photoField = $id('productPhoto');
+  const photoPreview = $id('productPhotoPreview');
+  const stockField = $id('productStock');
 
   if (!modalTitle || !idField || !nameField || !barcodeField || !minStockField || !maxStockField || !descField || !priceField || !photoField || !stockField) return;
 
   productPhotoURL = '';
   photoPreview.innerHTML = '';
 
-  const categorySelect = document.getElementById('productCategories');
+  const categorySelect = $id('productCategories');
 
   if (mode === 'edit' && productId !== null) {
     const products = await fetchJson('/products');
@@ -1600,7 +1574,7 @@ async function openProductModal(mode, productId = null) {
 document.addEventListener('change', async (e) => {
   if (e.target.id === 'productPhoto' && e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
-    const preview = document.getElementById('productPhotoPreview');
+    const preview = $id('productPhotoPreview');
     
     // Mostrar preview local
     const reader = new FileReader();
@@ -1630,15 +1604,15 @@ document.addEventListener('change', async (e) => {
 });
 
 async function saveProduct(event) {
-  if (!document.getElementById('productForm')) return;
+  if (!$id('productForm')) return;
   event.preventDefault();
-  const productId = document.getElementById('productId').value;
-  const name = document.getElementById('productName').value.trim();
-  const barcode = document.getElementById('productBarcode').value.trim();
-  const minStock = Number(document.getElementById('productMinStock').value || 0);
-  const maxStock = document.getElementById('productMaxStock').value;
-  const description = document.getElementById('productDescription').value.trim();
-  const price = Number(document.getElementById('productPrice').value || 0);
+  const productId = $id('productId').value;
+  const name = $id('productName').value.trim();
+  const barcode = $id('productBarcode').value.trim();
+  const minStock = Number($id('productMinStock').value || 0);
+  const maxStock = $id('productMaxStock').value;
+  const description = $id('productDescription').value.trim();
+  const price = Number($id('productPrice').value || 0);
   const submitButton = event.submitter || document.querySelector('#productForm button[type="submit"]');
 
   if (!name) {
@@ -1649,7 +1623,7 @@ async function saveProduct(event) {
   setLoadingState(submitButton, true);
 
   try {
-    const categorySelect = document.getElementById('productCategories');
+    const categorySelect = $id('productCategories');
     const categoryIds = categorySelect
       ? Array.from(categorySelect.selectedOptions).map((option) => Number(option.value))
       : [];
@@ -1673,7 +1647,7 @@ async function saveProduct(event) {
       });
       showAlert('success', 'Produto atualizado com sucesso.');
     } else {
-      const stockValue = Number(document.getElementById('productStock').value || 0);
+      const stockValue = Number($id('productStock').value || 0);
       if (payload.max_stock !== null && stockValue > payload.max_stock) {
         showAlert('warning', 'Estoque inicial não pode ser maior que o estoque máximo.');
         setLoadingState(submitButton, false);
@@ -1707,7 +1681,7 @@ async function saveProduct(event) {
         }
       }
     }
-    bootstrap.Modal.getInstance(document.getElementById('productModal'))?.hide();
+    bootstrap.Modal.getInstance($id('productModal'))?.hide();
     await loadProducts();
   } catch (error) {
     showAlert('danger', `Erro ao salvar produto: ${error.message}`);
@@ -1726,18 +1700,65 @@ async function performDeleteProduct(productId) {
   }
 }
 
+function deleteAllProducts() {
+  openDeleteConfirm('all-products', null, null);
+}
+
+async function performDeleteAllProducts() {
+  try {
+    const result = await fetchJson('/products/delete-all', { method: 'DELETE' });
+    showAlert('success', result?.message || 'Todos os produtos foram excluídos.');
+    await loadProducts();
+  } catch (error) {
+    showAlert('danger', `Erro ao excluir todos os produtos: ${error.message}`);
+  }
+}
+
+function revertStockMove(moveId) {
+  openDeleteConfirm('stock-move', moveId, null);
+}
+
+async function performRevertStockMove(moveId) {
+  try {
+    await fetchJson(`/stock/moves/${moveId}/revert`, { method: 'POST' });
+    showAlert('success', 'Movimentação revertida e estoque devolvido com sucesso.');
+    await loadStockMoves();
+  } catch (error) {
+    showAlert('danger', `Erro ao reverter movimentação: ${error.message}`);
+  }
+}
+
+const DELETE_CONFIRM_CONFIGS = {
+  'all-products': {
+    message: 'Tem certeza que deseja excluir TODOS os produtos? Eles deixarão de aparecer no sistema, mas o histórico de estoque e os pedidos serão preservados.',
+    buttonText: 'Excluir todos',
+    buttonClass: 'btn btn-danger',
+  },
+  'stock-move': {
+    message: 'Tem certeza que deseja voltar esta movimentação ao estoque? Uma movimentação de estorno será criada com a quantidade inversa.',
+    buttonText: 'Voltar ao estoque',
+    buttonClass: 'btn btn-warning text-dark',
+  },
+};
+
 function openDeleteConfirm(type, id, name = null) {
-  const modal = document.getElementById('deleteConfirmModal');
-  const message = document.getElementById('deleteConfirmMessage');
-  const confirmButton = document.getElementById('deleteConfirmButton');
+  const modal = $id('deleteConfirmModal');
+  const message = $id('deleteConfirmMessage');
+  const confirmButton = $id('deleteConfirmButton');
   if (!modal || !message || !confirmButton) return;
 
   const label = type === 'category' ? 'categoria' : 'produto';
-  message.textContent = name
-    ? `Tem certeza que deseja excluir a ${label} "${name}"?`
-    : `Tem certeza que deseja excluir este ${label}?`;
-  confirmButton.textContent = `Excluir ${label}`;
-  confirmButton.className = 'btn btn-danger';
+  const config = DELETE_CONFIRM_CONFIGS[type] || {
+    message: name
+      ? `Tem certeza que deseja excluir a ${label} "${name}"?`
+      : `Tem certeza que deseja excluir este ${label}?`,
+    buttonText: `Excluir ${label}`,
+    buttonClass: 'btn btn-danger',
+  };
+
+  message.textContent = config.message;
+  confirmButton.textContent = config.buttonText;
+  confirmButton.className = config.buttonClass;
 
   pendingDelete = { type, id };
   bootstrap.Modal.getOrCreateInstance(modal).show();
@@ -1747,11 +1768,15 @@ async function confirmDelete() {
   if (!pendingDelete) return;
   const { type, id } = pendingDelete;
   pendingDelete = null;
-  const modal = document.getElementById('deleteConfirmModal');
+  const modal = $id('deleteConfirmModal');
   bootstrap.Modal.getInstance(modal)?.hide();
 
   if (type === 'category') {
     await performDeleteCategory(id);
+  } else if (type === 'all-products') {
+    await performDeleteAllProducts();
+  } else if (type === 'stock-move') {
+    await performRevertStockMove(id);
   } else {
     await performDeleteProduct(id);
   }
@@ -1783,22 +1808,22 @@ function guessColumnForField(fieldKey, headers) {
 
 function goToImportStep(step) {
   ['importStep1', 'importStep2', 'importStep3'].forEach((id, idx) => {
-    document.getElementById(id)?.classList.toggle('d-none', idx + 1 !== step);
+    $id(id)?.classList.toggle('d-none', idx + 1 !== step);
   });
   [1, 2, 3].forEach((s) => {
     const indicator = document.querySelector(`[data-step-indicator="${s}"]`);
     if (!indicator) return;
     indicator.className = `badge rounded-pill ${s === step ? 'bg-primary' : s < step ? 'bg-success' : 'bg-secondary'}`;
   });
-  document.getElementById('importBackButton')?.classList.toggle('d-none', step !== 2);
-  document.getElementById('importNextButton')?.classList.toggle('d-none', step !== 1);
-  document.getElementById('importCommitButton')?.classList.toggle('d-none', step !== 2);
-  document.getElementById('importFinishButton')?.classList.toggle('d-none', step !== 3);
-  document.getElementById('importCancelButton')?.classList.toggle('d-none', step === 3);
+  $id('importBackButton')?.classList.toggle('d-none', step !== 2);
+  $id('importNextButton')?.classList.toggle('d-none', step !== 1);
+  $id('importCommitButton')?.classList.toggle('d-none', step !== 2);
+  $id('importFinishButton')?.classList.toggle('d-none', step !== 3);
+  $id('importCancelButton')?.classList.toggle('d-none', step === 3);
 }
 
 function renderImportMappingTable() {
-  const tbody = document.getElementById('importMappingTableBody');
+  const tbody = $id('importMappingTableBody');
   if (!tbody) return;
 
   tbody.innerHTML = IMPORT_FIELD_DEFS.map((field) => {
@@ -1827,8 +1852,8 @@ function renderImportMappingTable() {
 }
 
 function renderImportSample() {
-  const head = document.getElementById('importSampleHead');
-  const body = document.getElementById('importSampleBody');
+  const head = $id('importSampleHead');
+  const body = $id('importSampleBody');
   if (!head || !body) return;
 
   head.innerHTML = `<tr>${importState.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
@@ -1854,7 +1879,7 @@ async function handleImportFileSelected(event) {
     return;
   }
 
-  const importButton = document.getElementById('importProductsButton');
+  const importButton = $id('importProductsButton');
   setLoadingState(importButton, true);
 
   try {
@@ -1880,8 +1905,8 @@ async function handleImportFileSelected(event) {
       completed: false,
     };
 
-    const importFileName = document.getElementById('importFileName');
-    const importRowCount = document.getElementById('importRowCount');
+    const importFileName = $id('importFileName');
+    const importRowCount = $id('importRowCount');
     if (importFileName) importFileName.textContent = file.name;
     if (importRowCount) importRowCount.textContent = data.row_count ?? 0;
 
@@ -1903,8 +1928,8 @@ function importActionBadge(action) {
 }
 
 function renderImportPreview() {
-  const summaryContainer = document.getElementById('importSummaryCards');
-  const tbody = document.getElementById('importPreviewTableBody');
+  const summaryContainer = $id('importSummaryCards');
+  const tbody = $id('importPreviewTableBody');
   if (!summaryContainer || !tbody || !importState.previewResult) return;
 
   const { summary, rows } = importState.previewResult;
@@ -1952,7 +1977,7 @@ async function loadImportPreview() {
     return;
   }
 
-  const nextButton = document.getElementById('importNextButton');
+  const nextButton = $id('importNextButton');
   setLoadingState(nextButton, true);
 
   try {
@@ -1972,7 +1997,7 @@ async function loadImportPreview() {
 }
 
 async function commitImport() {
-  const commitButton = document.getElementById('importCommitButton');
+  const commitButton = $id('importCommitButton');
   setLoadingState(commitButton, true);
 
   try {
@@ -1982,7 +2007,7 @@ async function commitImport() {
       body: JSON.stringify({ import_id: importState.importId, mapping: importState.mapping }),
     });
 
-    const resultMessage = document.getElementById('importResultMessage');
+    const resultMessage = $id('importResultMessage');
     if (resultMessage) {
       resultMessage.innerHTML = `
         <strong>${result.created}</strong> produto(s) criado(s) e <strong>${result.updated}</strong> atualizado(s).
@@ -2001,19 +2026,19 @@ async function commitImport() {
 }
 
 async function openStockMoveModal() {
-  if (!document.getElementById('stockMoveForm')) return;
-  document.getElementById('stockMoveForm')?.reset();
+  if (!$id('stockMoveForm')) return;
+  $id('stockMoveForm')?.reset();
   await loadStockItems();
   openModal('stockMoveModal');
 }
 
 async function saveStockMove(event) {
-  if (!document.getElementById('stockMoveForm')) return;
+  if (!$id('stockMoveForm')) return;
   event.preventDefault();
-  const stockId = document.getElementById('stockItemSelect').value;
-  const moveType = document.getElementById('stockMoveType').value;
-  const quantity = Number(document.getElementById('stockQuantityChange').value || 0);
-  const reason = document.getElementById('stockReason').value.trim();
+  const stockId = $id('stockItemSelect').value;
+  const moveType = $id('stockMoveType').value;
+  const quantity = Number($id('stockQuantityChange').value || 0);
+  const reason = $id('stockReason').value.trim();
   const submitButton = event.submitter || document.querySelector('#stockMoveForm button[type="submit"]');
 
   if (!stockId || !moveType || quantity === 0) {
@@ -2032,7 +2057,7 @@ async function saveStockMove(event) {
       body: JSON.stringify({ stock_id: stockId, quantity_change, reason }),
     });
     showAlert('success', 'Movimentação de estoque registrada com sucesso.');
-    bootstrap.Modal.getInstance(document.getElementById('stockMoveModal'))?.hide();
+    bootstrap.Modal.getInstance($id('stockMoveModal'))?.hide();
     if (stockMovesTableBody) {
       await loadStockMoves();
     } else {
@@ -2046,9 +2071,9 @@ async function saveStockMove(event) {
 }
 
 function openClientDeactivateModal(clientId, clientName, clientActive) {
-  const clientNameElement = document.getElementById('clientDeactivateName');
-  const confirmButton = document.getElementById('confirmDeactivateClientButton');
-  const clientMessage = document.getElementById('clientDeactivateMessage');
+  const clientNameElement = $id('clientDeactivateName');
+  const confirmButton = $id('confirmDeactivateClientButton');
+  const clientMessage = $id('clientDeactivateMessage');
 
   if (!clientNameElement || !confirmButton || !clientMessage) return;
 
@@ -2068,8 +2093,8 @@ function openClientDeactivateModal(clientId, clientName, clientActive) {
 }
 
 async function confirmDeactivateClient() {
-  const modal = document.getElementById('clientDeactivateModal');
-  const confirmButton = document.getElementById('confirmDeactivateClientButton');
+  const modal = $id('clientDeactivateModal');
+  const confirmButton = $id('confirmDeactivateClientButton');
   if (!modal || !confirmButton) return;
 
   const clientId = Number(confirmButton.dataset.clientId);
@@ -2105,14 +2130,38 @@ function handleClientTableClick(event) {
   openClientDetailModal(Number(clientId));
 }
 
+function updateOrderStatus(orderId, payload) {
+  return fetchJson(`/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
+function confirmPartialWithdrawal(orderId, shortages) {
+  const lines = shortages.map(
+    (item) => `• ${item.product_name}: solicitado ${item.requested}, disponível ${item.available}`
+  );
+  return window.confirm(
+    `Estoque insuficiente para o pedido #${orderId}:\n\n${lines.join('\n')}\n\n` +
+    'Deseja concluir a retirada entregando apenas a quantidade disponível?'
+  );
+}
+
 window.handleAdminOrderAction = async function (orderId, action, button) {
   setLoadingState(button, true);
   try {
-    await fetchJson(`/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    });
+    try {
+      await updateOrderStatus(orderId, { action });
+    } catch (error) {
+      const shortages = error.data?.code === 'insufficient_stock' ? error.data.shortages : null;
+      if (!shortages?.length) throw error;
+      if (!confirmPartialWithdrawal(orderId, shortages)) {
+        showAlert('warning', `Retirada do pedido ${orderId} não concluída por falta de estoque.`);
+        return;
+      }
+      await updateOrderStatus(orderId, { action, allow_partial: true });
+    }
     showAlert('success', 'Status da solicitação atualizado.');
     await loadOrders();
     await loadDashboardSummary();
@@ -2127,55 +2176,31 @@ window.openCategoryModal = openCategoryModal;
 window.openProductModal = openProductModal;
 window.deleteCategory = deleteCategory;
 window.deleteProduct = deleteProduct;
+window.revertStockMove = revertStockMove;
 window.openClientDeactivateModal = openClientDeactivateModal;
 window.openClientDetailModal = openClientDetailModal;
 window.openOrderDetailModal = openOrderDetailModal;
 
 window.addEventListener('DOMContentLoaded', async () => {
-  const refreshOrdersButton = document.getElementById('refreshOrdersButton');
-  const refreshCategoriesButton = document.getElementById('refreshCategoriesButton');
-  const refreshProductsButton = document.getElementById('refreshProductsButton');
-  const refreshClientsButton = document.getElementById('refreshClientsButton');
-  const newCategoryButton = document.getElementById('newCategoryButton');
-  const newProductButton = document.getElementById('newProductButton');
-  const importProductsButton = document.getElementById('importProductsButton');
-  const importProductsFileInput = document.getElementById('importProductsFileInput');
-  const importNextButton = document.getElementById('importNextButton');
-  const importBackButton = document.getElementById('importBackButton');
-  const importCommitButton = document.getElementById('importCommitButton');
-  const importWizardModal = document.getElementById('importWizardModal');
-  const exportProductsButton = document.getElementById('exportProductsButton');
-  const exportConfirmButton = document.getElementById('exportConfirmButton');
-  const exportSelectAllColumns = document.getElementById('exportSelectAllColumns');
-  const exportClearAllColumns = document.getElementById('exportClearAllColumns');
-  const newStockMoveButton = document.getElementById('newStockMoveButton');
-  const viewStockMovesButton = document.getElementById('viewStockMovesButton');
-  const refreshStockMovesButton = document.getElementById('refreshStockMovesButton');
-  const backToProductsButton = document.getElementById('backToProductsButton');
-  const filterStockMovesButton = document.getElementById('filterStockMovesButton');
-  const quick7DaysButton = document.getElementById('quick7DaysButton');
-  const quick90DaysButton = document.getElementById('quick90DaysButton');
-  const orderActionConfirmButton = document.getElementById('orderActionConfirmButton');
-  const deleteConfirmButton = document.getElementById('deleteConfirmButton');
-  const stockStartDate = document.getElementById('stockStartDate');
-  const stockEndDate = document.getElementById('stockEndDate');
-  const categoryForm = document.getElementById('categoryForm');
-  const productForm = document.getElementById('productForm');
-  const stockMoveForm = document.getElementById('stockMoveForm');
+  setupModuleSearch();
+  const importProductsFileInput = $id('importProductsFileInput');
+  const stockStartDate = $id('stockStartDate');
+  const stockEndDate = $id('stockEndDate');
 
-  refreshOrdersButton?.addEventListener('click', () => loadOrders(refreshOrdersButton));
-  refreshCategoriesButton?.addEventListener('click', () => loadCategories(refreshCategoriesButton));
-  refreshProductsButton?.addEventListener('click', () => loadProducts(refreshProductsButton));
-  refreshClientsButton?.addEventListener('click', () => loadClients(refreshClientsButton));
+  $id('refreshOrdersButton')?.addEventListener('click', function () { loadOrders(this); });
+  $id('refreshCategoriesButton')?.addEventListener('click', function () { loadCategories(this); });
+  $id('refreshProductsButton')?.addEventListener('click', function () { loadProducts(this); });
+  $id('deleteAllProductsButton')?.addEventListener('click', deleteAllProducts);
+  $id('refreshClientsButton')?.addEventListener('click', function () { loadClients(this); });
   clientsTableBody?.addEventListener('click', handleClientTableClick);
-  newCategoryButton?.addEventListener('click', () => openCategoryModal('new'));
-  newProductButton?.addEventListener('click', () => openProductModal('new'));
-  importProductsButton?.addEventListener('click', () => importProductsFileInput?.click());
+  $id('newCategoryButton')?.addEventListener('click', () => openCategoryModal('new'));
+  $id('newProductButton')?.addEventListener('click', () => openProductModal('new'));
+  $id('importProductsButton')?.addEventListener('click', () => importProductsFileInput?.click());
   importProductsFileInput?.addEventListener('change', handleImportFileSelected);
-  importNextButton?.addEventListener('click', loadImportPreview);
-  importBackButton?.addEventListener('click', () => goToImportStep(1));
-  importCommitButton?.addEventListener('click', commitImport);
-  importWizardModal?.addEventListener('hidden.bs.modal', () => {
+  $id('importNextButton')?.addEventListener('click', loadImportPreview);
+  $id('importBackButton')?.addEventListener('click', () => goToImportStep(1));
+  $id('importCommitButton')?.addEventListener('click', commitImport);
+  $id('importWizardModal')?.addEventListener('hidden.bs.modal', () => {
     if (importState.importId && !importState.completed) {
       fetch(`${API_BASE_URL}/products/import/${importState.importId}`, {
         method: 'DELETE',
@@ -2184,33 +2209,33 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     resetImportWizard();
   });
-  exportProductsButton?.addEventListener('click', openExportModal);
-  exportConfirmButton?.addEventListener('click', exportProductsToCsv);
-  exportSelectAllColumns?.addEventListener('click', () => {
+  $id('exportProductsButton')?.addEventListener('click', openExportModal);
+  $id('exportConfirmButton')?.addEventListener('click', exportProductsToCsv);
+  $id('exportSelectAllColumns')?.addEventListener('click', () => {
     document.querySelectorAll('#exportColumnsList input[type="checkbox"]').forEach((input) => { input.checked = true; });
   });
-  exportClearAllColumns?.addEventListener('click', () => {
+  $id('exportClearAllColumns')?.addEventListener('click', () => {
     document.querySelectorAll('#exportColumnsList input[type="checkbox"]').forEach((input) => { input.checked = false; });
   });
-  newStockMoveButton?.addEventListener('click', openStockMoveModal);
-  viewStockMovesButton?.addEventListener('click', () => { window.location.href = '/admin/products/stock-moves'; });
-  refreshStockMovesButton?.addEventListener('click', () => loadStockMoves(refreshStockMovesButton));
-  backToProductsButton?.addEventListener('click', () => { window.location.href = '/admin/products'; });
-  filterStockMovesButton?.addEventListener('click', () => loadStockMoves(filterStockMovesButton));
-  quick7DaysButton?.addEventListener('click', () => setStockFilterRange(7, true));
-  quick90DaysButton?.addEventListener('click', () => setStockFilterRange(90, true));
-  orderActionConfirmButton?.addEventListener('click', confirmOrderAction);
-  deleteConfirmButton?.addEventListener('click', confirmDelete);
-  categoryForm?.addEventListener('submit', saveCategory);
-  productForm?.addEventListener('submit', saveProduct);
-  stockMoveForm?.addEventListener('submit', saveStockMove);
+  $id('newStockMoveButton')?.addEventListener('click', openStockMoveModal);
+  $id('viewStockMovesButton')?.addEventListener('click', () => { window.location.href = '/admin/products/stock-moves'; });
+  $id('refreshStockMovesButton')?.addEventListener('click', function () { loadStockMoves(this); });
+  $id('backToProductsButton')?.addEventListener('click', () => { window.location.href = '/admin/products'; });
+  $id('filterStockMovesButton')?.addEventListener('click', function () { loadStockMoves(this); });
+  $id('quick7DaysButton')?.addEventListener('click', () => setStockFilterRange(7, true));
+  $id('quick90DaysButton')?.addEventListener('click', () => setStockFilterRange(90, true));
+  $id('orderActionConfirmButton')?.addEventListener('click', confirmOrderAction);
+  $id('deleteConfirmButton')?.addEventListener('click', confirmDelete);
+  $id('categoryForm')?.addEventListener('submit', saveCategory);
+  $id('productForm')?.addEventListener('submit', saveProduct);
+  $id('stockMoveForm')?.addEventListener('submit', saveStockMove);
 
-  refreshSettingsUsersButton?.addEventListener('click', () => loadSettingsUsers(refreshSettingsUsersButton));
-  newSettingsUserButton?.addEventListener('click', () => openSettingsUserModal('new'));
-  refreshSettingsPermissionsButton?.addEventListener('click', () => loadSettingsPermissions(refreshSettingsPermissionsButton));
-  newSettingsPermissionButton?.addEventListener('click', () => openSettingsPermissionModal('new'));
-  refreshSettingsProfilesButton?.addEventListener('click', () => loadSettingsProfiles(refreshSettingsProfilesButton));
-  newSettingsProfileButton?.addEventListener('click', () => openSettingsProfileModal('new'));
+  $id('refreshSettingsUsersButton')?.addEventListener('click', function () { loadSettingsUsers(this); });
+  $id('newSettingsUserButton')?.addEventListener('click', () => openSettingsUserModal('new'));
+  $id('refreshSettingsPermissionsButton')?.addEventListener('click', function () { loadSettingsPermissions(this); });
+  $id('newSettingsPermissionButton')?.addEventListener('click', () => openSettingsPermissionModal('new'));
+  $id('refreshSettingsProfilesButton')?.addEventListener('click', function () { loadSettingsProfiles(this); });
+  $id('newSettingsProfileButton')?.addEventListener('click', () => openSettingsProfileModal('new'));
   settingsUserForm?.addEventListener('submit', saveSettingsUser);
   settingsPermissionForm?.addEventListener('submit', saveSettingsPermission);
   settingsProfileForm?.addEventListener('submit', saveSettingsProfile);
