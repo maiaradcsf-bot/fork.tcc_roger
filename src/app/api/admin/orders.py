@@ -130,31 +130,71 @@ def admin_get_order(order_id):
     })
 
 
+# Single source of truth for admin order actions: the target status is always derived
+# from the action, and each action requires its own permission. Finishing (pick-up)
+# has no dedicated permission in the system and reuses admin.orders.approve.
+ORDER_ACTIONS = {
+    'approve': {
+        'status': OrderStatus.APPROVED.value,
+        'permission': 'admin.orders.approve',
+        'from': {OrderStatus.PENDING.value},
+    },
+    'reject': {
+        'status': OrderStatus.REJECTED.value,
+        'permission': 'admin.orders.reject',
+        'from': {OrderStatus.PENDING.value},
+    },
+    'finish': {
+        'status': OrderStatus.FINISHED.value,
+        'permission': 'admin.orders.approve',
+        'from': {OrderStatus.APPROVED.value},
+    },
+    'cancel': {
+        'status': OrderStatus.CANCELLED.value,
+        'permission': 'admin.orders.cancel',
+        'from': {OrderStatus.PENDING.value, OrderStatus.APPROVED.value, OrderStatus.FINISHED.value},
+    },
+}
+
+ORDER_ACTION_ALIASES = {
+    'approved': 'approve',
+    'rejected': 'reject',
+    'finished': 'finish',
+    'picked_up': 'finish',
+    'cancelled': 'cancel',
+    'canceled': 'cancel',
+}
+
+
 @admin_bp.route('/orders/<int:order_id>/status', methods=['PATCH'])
 def admin_update_order_status(order_id):
     user, error, status = admin_required()
     if error:
         return error, status
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Corpo da requisição inválido'}), 400
+
     action = data.get('action')
-    if not action:
+    if not isinstance(action, str) or not action.strip():
         return jsonify({'error': 'Ação é obrigatória'}), 400
-    action_permission_map = {
-        'approve': 'admin.orders.approve',
-        'approved': 'admin.orders.approve',
-        'reject': 'admin.orders.reject',
-        'rejected': 'admin.orders.reject',
-        'cancel': 'admin.orders.cancel',
-        'cancelled': 'admin.orders.cancel',
-        'canceled': 'admin.orders.cancel',
-        'finish': 'admin.orders.approve',
-        'finished': 'admin.orders.approve',
-        'picked_up': 'admin.orders.approve',
-    }
-    required_permission = action_permission_map.get(action)
-    if required_permission and not user.has_permission(required_permission):
+    action = action.strip().lower()
+    action = ORDER_ACTION_ALIASES.get(action, action)
+    action_config = ORDER_ACTIONS.get(action)
+    if not action_config:
+        return jsonify({'error': 'Ação não suportada'}), 400
+
+    if not user.has_permission(action_config['permission']):
         return jsonify({'error': 'Permissão insuficiente'}), 403
+
+    new_status = action_config['status']
+
+    # 'status' is not an alternative way to choose the target; if sent, it must agree with the action
+    if 'status' in data:
+        requested_status = data.get('status')
+        if not isinstance(requested_status, str) or normalize_order_status(requested_status.strip()) != new_status:
+            return jsonify({'error': 'Status informado não corresponde à ação'}), 400
 
     order = Order.query.options(
         joinedload(Order.items).joinedload(OrderItem.product)
@@ -162,35 +202,9 @@ def admin_update_order_status(order_id):
     if not order:
         return jsonify({'error': 'Pedido não encontrado'}), 404
 
-    data = request.get_json() or {}
-    requested_status = data.get('status')
-    action = data.get('action')
-    action_status_map = {
-        'approve': OrderStatus.APPROVED.value,
-        'approved': OrderStatus.APPROVED.value,
-        'reject': OrderStatus.REJECTED.value,
-        'rejected': OrderStatus.REJECTED.value,
-        'cancel': OrderStatus.CANCELLED.value,
-        'cancelled': OrderStatus.CANCELLED.value,
-        'canceled': OrderStatus.CANCELLED.value,
-        'finish': OrderStatus.FINISHED.value,
-        'finished': OrderStatus.FINISHED.value,
-        'picked_up': OrderStatus.FINISHED.value,
-    }
-    new_status = action_status_map.get(action, requested_status)
-    allowed_statuses = {status.value for status in OrderStatus}
-    if new_status not in allowed_statuses:
-        return jsonify({'error': 'Status de pedido inválido'}), 400
-
     current_status = normalize_order_status(order.status)
-    allowed_transitions = {
-        OrderStatus.PENDING.value: {OrderStatus.APPROVED.value, OrderStatus.REJECTED.value, OrderStatus.CANCELLED.value},
-        OrderStatus.APPROVED.value: {OrderStatus.FINISHED.value, OrderStatus.CANCELLED.value},
-        OrderStatus.FINISHED.value: {OrderStatus.CANCELLED.value},
-        OrderStatus.REJECTED.value: set(),
-        OrderStatus.CANCELLED.value: set(),
-    }
-    if new_status != current_status and new_status not in allowed_transitions.get(current_status, set()):
+    if current_status not in action_config['from']:
+        db.session.rollback()
         return jsonify({'error': 'Transição de status inválida'}), 400
 
     current_time = datetime.utcnow()
@@ -199,7 +213,7 @@ def admin_update_order_status(order_id):
 
     # Finishing withdraws the items from stock; if stock is short the request is refused
     # unless the admin explicitly accepts withdrawing only what is available (allow_partial)
-    if new_status == OrderStatus.FINISHED.value and new_status != current_status:
+    if new_status == OrderStatus.FINISHED.value:
         requested_by_product = {}
         for item in order.items or []:
             if not item.product:
@@ -253,16 +267,16 @@ def admin_update_order_status(order_id):
             Stock.query.filter_by(id=move.stock_id).with_for_update().populate_existing().first()
             db.session.add(move.revert(user.id, reason))
 
-    if new_status == OrderStatus.APPROVED.value and new_status != current_status:
+    if new_status == OrderStatus.APPROVED.value:
         order.approved_user_id = user.id
         order.approved_at = current_time
-    elif new_status == OrderStatus.REJECTED.value and new_status != current_status:
+    elif new_status == OrderStatus.REJECTED.value:
         order.refused_user_id = user.id
         order.refused_at = current_time
-    elif new_status == OrderStatus.CANCELLED.value and new_status != current_status:
+    elif new_status == OrderStatus.CANCELLED.value:
         order.canceled_user_id = user.id
         order.canceled_at = current_time
-    elif new_status == OrderStatus.FINISHED.value and new_status != current_status:
+    elif new_status == OrderStatus.FINISHED.value:
         order.finished_user_id = user.id
         order.finished_at = current_time
 
