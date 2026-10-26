@@ -232,6 +232,7 @@ async function saveClientProfile(event) {
   const phone = document.getElementById('clientProfilePhone')?.value.trim();
   const password = document.getElementById('clientProfilePassword')?.value || '';
   const passwordConfirm = document.getElementById('clientProfilePasswordConfirm')?.value || '';
+  const currentPassword = document.getElementById('clientProfileCurrentPassword')?.value || '';
 
   if (!name || !email) {
     showAlert('warning', 'Nome e e-mail são obrigatórios.');
@@ -243,13 +244,21 @@ async function saveClientProfile(event) {
     return;
   }
 
+  if (password && !currentPassword) {
+    showAlert('warning', 'Informe a senha atual para trocar a senha.');
+    return;
+  }
+
   const payload = {
     name,
     email,
     phone,
     photo_path: clientProfilePhotoURL || undefined
   };
-  if (password) payload.password = password;
+  if (password) {
+    payload.password = password;
+    payload.current_password = currentPassword;
+  }
 
   try {
     const response = await fetch('/api/client/profile', {
@@ -269,6 +278,8 @@ async function saveClientProfile(event) {
     showAlert('success', data.message || 'Perfil atualizado com sucesso.');
     document.getElementById('clientProfilePassword').value = '';
     document.getElementById('clientProfilePasswordConfirm').value = '';
+    const currentPasswordField = document.getElementById('clientProfileCurrentPassword');
+    if (currentPasswordField) currentPasswordField.value = '';
   } catch (err) {
     showAlert('danger', `Falha ao salvar perfil: ${err.message}`);
   }

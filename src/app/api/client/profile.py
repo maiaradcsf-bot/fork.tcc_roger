@@ -1,10 +1,9 @@
-import os
-import secrets
-from werkzeug.utils import secure_filename
-
 from app.api.client import client_bp
 from flask import jsonify, request
-from app.api.utils import client_required, client_permission_required, get_active_products, normalize_order_status, UPLOAD_FOLDER, allowed_file
+from app.api.utils import (client_required, client_permission_required, normalize_order_status, json_body, text_field,
+                           email_field, password_field, save_uploaded_image)
+from app.models import db
+from app.models.clients import Client
 from app.models.products import Product
 from app.models.status_enums import OrderStatus
 
@@ -53,24 +52,7 @@ def client_upload():
     client, error, status = client_required()
     if error:
         return error, status
-
-    if 'file' not in request.files:
-        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'Tipo de arquivo não permitido. Use: png, jpg, jpeg, gif, webp'}), 400
-
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    filename = secure_filename(file.filename)
-    filename = f"{secrets.token_hex(8)}_{filename}"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
-    return jsonify({'url': f'/static/uploads/{filename}'}), 201
+    return jsonify({'url': save_uploaded_image(request.files.get('file'))}), 201
 
 
 @client_bp.route('/profile', methods=['PUT'])
@@ -80,15 +62,25 @@ def update_client_profile():
     if error:
         return error, status
 
-    data = request.get_json() or {}
-    client.name = data.get('name', client.name)
-    client.email = data.get('email', client.email)
-    client.phone = data.get('phone', client.phone)
-    client.photo_path = data.get('photo_path', client.photo_path)
-    password = data.get('password')
+    data = json_body()
+    if 'name' in data:
+        client.name = text_field(data, 'name', 'nome', 150, required=True)
+    if 'email' in data:
+        email = email_field(data, required=True)
+        if email != client.email and Client.query.filter(Client.email == email, Client.id != client.id).first():
+            return jsonify({'error': 'Email já cadastrado'}), 409
+        client.email = email
+    if 'phone' in data:
+        client.phone = text_field(data, 'phone', 'telefone', 50) or None
+    if 'photo_path' in data:
+        client.photo_path = text_field(data, 'photo_path', 'photo_path', 255) or None
+    password = password_field(data)
     if password:
+        # A stolen session must not be enough to take over the account
+        current = data.get('current_password')
+        if not isinstance(current, str) or not client.check_password(current):
+            return jsonify({'error': 'Senha atual incorreta'}), 403
         client.set_password(password)
-    from app.models import db
     db.session.commit()
     return jsonify({'message': 'Perfil atualizado com sucesso'})
 

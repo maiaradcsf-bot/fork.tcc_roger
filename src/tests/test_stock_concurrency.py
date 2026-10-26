@@ -46,7 +46,7 @@ PREVIOUS_REVISION = 'b7c8d9e0f1a2'
 ADMIN_PERMISSIONS = [
     'admin.orders.list', 'admin.orders.approve', 'admin.orders.reject', 'admin.orders.cancel',
     'admin.stock.moves.list', 'admin.stock.moves.create', 'admin.stock.moves.delete',
-    'admin.products.import',
+    'admin.products.import', 'admin.categories.create',
 ]
 
 
@@ -660,16 +660,28 @@ def test_failure_during_import_rolls_back_every_row(env, monkeypatch):
     assert_ledger_consistent(env)
 
 
-def test_unrelated_integrity_error_is_not_reported_as_stock_conflict(env):
-    """A barcode that belongs to a soft-deleted product makes the import insert a duplicate
-    barcode: a real data error. It must propagate (500 in production), not become a 409
-    'try again', and the rows before it must be rolled back."""
+def test_import_with_barcode_of_deleted_product_marks_row_invalid(env):
+    """The barcode of a soft-deleted product used to reach the database as a duplicate (500).
+    Now the row is reported as invalid and the valid rows are imported."""
     p = env['product']('A', 5)
     _set_barcode(env, p, '111')
     deleted = env['product']('Antigo', 0)
     _set_barcode(env, deleted, '999', deleted=True)
-    with pytest.raises(IntegrityError) as excinfo:
-        _upload_and_commit(env['app'].test_client(), 'nome,preco,codigo,estoque\nA,1,111,9\nNovo,2,999,3\n')
-    assert excinfo.value.orig.args[0] == 1062 and 'barcode' in str(excinfo.value.orig)
-    assert stock_qty(env, p) == 5
+    resp = _upload_and_commit(env['app'].test_client(), 'nome,preco,codigo,estoque\nA,1,111,9\nNovo,2,999,3\n')
+    assert resp.status_code == 200
+    assert resp.get_json()['skipped'] == 1 and resp.get_json()['updated'] == 1
+    assert stock_qty(env, p) == 9
+    assert env['read'](lambda: Product.query.filter_by(barcode='999').count()) == 1
     assert_ledger_consistent(env)
+
+
+def test_unrelated_integrity_error_is_409_but_not_a_stock_conflict(env, monkeypatch):
+    """A duplicate that slips past validation (here the pre-check is disabled to simulate two
+    simultaneous requests) is a 409 'integrity_error', never the stock 'concurrent_update'."""
+    import app.api.admin.categories as categories_module
+    monkeypatch.setattr(categories_module, '_ensure_name_free', lambda *args, **kwargs: None)
+    client = env['app'].test_client()
+    assert admin(client, 'POST', '/categories', {'name': 'Duplicada'}).status_code == 201
+    resp = admin(client, 'POST', '/categories', {'name': 'Duplicada'})
+    assert resp.status_code == 409
+    assert resp.get_json()['code'] == 'integrity_error'

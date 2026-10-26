@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+!.env.example
+.docker/mysql
+.docker/imagens
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.pytest_cache
+src/app/tmp_imports
+src/app/static/uploads

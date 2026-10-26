@@ -1,10 +1,9 @@
-import os
-import secrets
 from datetime import datetime
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required, permission_required, get_active_products, get_product_by_id, UPLOAD_FOLDER, allowed_file
-from werkzeug.utils import secure_filename
+from app.api.utils import (admin_required, permission_required, get_active_products, get_product_by_id, json_body,
+                           text_field, id_list_field, price_field, stock_limit_field, save_uploaded_image,
+                           ValidationError)
 from app.models.products import Product
 from app.models.categories import Category
 from app.models import db
@@ -23,14 +22,8 @@ def _serialize_product_categories(product):
     return categories
 
 
-@admin_bp.route('/products', methods=['GET'])
-@permission_required('admin.products.list')
-def admin_list_products():
-    user, error, status = admin_required()
-    if error:
-        return error, status
-    products = get_active_products()
-    return jsonify([{
+def _serialize_product(product):
+    return {
         'id': product.id,
         'name': product.name,
         'description': product.description,
@@ -42,7 +35,58 @@ def admin_list_products():
         'stock': product.stock.quantity if product.stock else 0,
         'category_ids': [category.id for category in product.categories],
         'categories': _serialize_product_categories(product)
-    } for product in products])
+    }
+
+
+@admin_bp.route('/products', methods=['GET'])
+@permission_required('admin.products.list')
+def admin_list_products():
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    return jsonify([_serialize_product(product) for product in get_active_products()])
+
+
+@admin_bp.route('/products/<int:product_id>', methods=['GET'])
+@permission_required('admin.products.list')
+def admin_get_product(product_id):
+    user, error, status = admin_required()
+    if error:
+        return error, status
+    product = get_product_by_id(product_id)
+    if not product:
+        return jsonify({'error': 'Produto não encontrado'}), 404
+    return jsonify(_serialize_product(product))
+
+
+def _categories_field(data):
+    category_ids = id_list_field(data, 'category_ids', 'category_ids')
+    categories = Category.query.filter(Category.id.in_(category_ids)).all() if category_ids else []
+    if len(categories) != len(category_ids):
+        raise ValidationError('IDs de categoria inválidos')
+    return categories
+
+
+def _barcode_field(data, product_id=None):
+    value = data.get('barcode')
+    if isinstance(value, int) and not isinstance(value, bool):
+        value = str(value)
+    barcode = text_field({'barcode': value}, 'barcode', 'código de barras', 64) or None
+    if barcode:
+        query = Product.query.filter(Product.barcode == barcode)
+        if product_id is not None:
+            query = query.filter(Product.id != product_id)
+        existing = query.first()
+        if existing:
+            if existing.deleted_at is not None:
+                raise ValidationError('Código de barras pertence a um produto excluído', 409)
+            raise ValidationError('Código de barras já existe', 409)
+    return barcode
+
+
+def _check_stock_limits(min_stock, max_stock):
+    if min_stock is not None and max_stock is not None and max_stock < min_stock:
+        raise ValidationError('max_stock não pode ser menor que min_stock')
 
 
 @admin_bp.route('/products', methods=['POST'])
@@ -51,42 +95,22 @@ def admin_create_product():
     user, error, status = admin_required()
     if error:
         return error, status
-    data = request.get_json() or {}
-    category_ids = data.get('category_ids', []) or []
-    categories = []
-    if category_ids:
-        categories = Category.query.filter(Category.id.in_(category_ids)).all()
-        if len(categories) != len(set(category_ids)):
-            return jsonify({'error': 'IDs de categoria inválidos'}), 400
-
-    barcode = data.get('barcode')
-    if barcode:
-        barcode = barcode.strip() or None
-        if barcode and Product.query.filter_by(barcode=barcode).first():
-            return jsonify({'error': 'Código de barras já existe'}), 409
-
-    min_stock = data.get('min_stock')
-    max_stock = data.get('max_stock')
-    try:
-        min_stock = int(min_stock) if min_stock is not None and min_stock != '' else None
-    except (TypeError, ValueError):
-        return jsonify({'error': 'min_stock deve ser um número inteiro válido'}), 400
-    try:
-        max_stock = int(max_stock) if max_stock is not None and max_stock != '' else None
-    except (TypeError, ValueError):
-        return jsonify({'error': 'max_stock deve ser um número inteiro válido'}), 400
-    if min_stock is not None and min_stock < 0:
-        return jsonify({'error': 'min_stock não pode ser negativo'}), 400
-    if max_stock is not None and max_stock < 0:
-        return jsonify({'error': 'max_stock não pode ser negativo'}), 400
-    if min_stock is not None and max_stock is not None and max_stock < min_stock:
-        return jsonify({'error': 'max_stock não pode ser menor que min_stock'}), 400
+    data = json_body()
+    name = text_field(data, 'name', 'nome', 150, required=True)
+    description = text_field(data, 'description', 'descrição', 5000)
+    price = price_field(data)
+    photo_path = text_field(data, 'photo_path', 'photo_path', 255) or None
+    categories = _categories_field(data)
+    barcode = _barcode_field(data)
+    min_stock = stock_limit_field(data, 'min_stock', 'min_stock')
+    max_stock = stock_limit_field(data, 'max_stock', 'max_stock')
+    _check_stock_limits(min_stock, max_stock)
 
     product = Product(
-        name=data.get('name'),
-        description=data.get('description'),
-        price=data.get('price', 0),
-        photo_path=data.get('photo_path'),
+        name=name,
+        description=description,
+        price=price if price is not None else 0,
+        photo_path=photo_path,
         barcode=barcode,
         min_stock=min_stock,
         max_stock=max_stock
@@ -103,30 +127,7 @@ def admin_upload():
     user, error, status = admin_required()
     if error:
         return error, status
-    
-    if 'file' not in request.files:
-        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'Tipo de arquivo não permitido. Use: png, jpg, jpeg, gif, webp'}), 400
-    
-    # Create uploads folder if doesn't exist
-    import os
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    
-    # Generate secure filename
-    filename = secure_filename(file.filename)
-    filename = f"{secrets.token_hex(8)}_{filename}"
-    
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-    
-    # Return relative path for web access
-    return jsonify({'url': f'/static/uploads/{filename}'}), 201
+    return jsonify({'url': save_uploaded_image(request.files.get('file'))}), 201
 
 
 @admin_bp.route('/products/<int:product_id>', methods=['PUT'])
@@ -139,42 +140,24 @@ def admin_update_product(product_id):
     if not product:
         return jsonify({'error': 'Produto não encontrado'}), 404
 
-    data = request.get_json() or {}
-    category_ids = data.get('category_ids')
-    if category_ids is not None:
-        categories = Category.query.filter(Category.id.in_(category_ids)).all() if category_ids else []
-        if len(categories) != len(set(category_ids)):
-            return jsonify({'error': 'IDs de categoria inválidos'}), 400
-        product.categories = categories
-
-    barcode = data.get('barcode')
-    if barcode:
-        barcode = barcode.strip() or None
-        if barcode and Product.query.filter(Product.barcode == barcode, Product.id != product_id).first():
-            return jsonify({'error': 'Código de barras já existe'}), 409
-
-    min_stock = data.get('min_stock')
-    max_stock = data.get('max_stock')
-    try:
-        min_stock = int(min_stock) if min_stock is not None and min_stock != '' else product.min_stock
-    except (TypeError, ValueError):
-        return jsonify({'error': 'min_stock deve ser um número inteiro válido'}), 400
-    try:
-        max_stock = int(max_stock) if max_stock is not None and max_stock != '' else product.max_stock
-    except (TypeError, ValueError):
-        return jsonify({'error': 'max_stock deve ser um número inteiro válido'}), 400
-    if min_stock is not None and min_stock < 0:
-        return jsonify({'error': 'min_stock não pode ser negativo'}), 400
-    if max_stock is not None and max_stock < 0:
-        return jsonify({'error': 'max_stock não pode ser negativo'}), 400
-    if min_stock is not None and max_stock is not None and max_stock < min_stock:
-        return jsonify({'error': 'max_stock não pode ser menor que min_stock'}), 400
-
-    product.name = data.get('name', product.name)
-    product.description = data.get('description', product.description)
-    product.price = data.get('price', product.price)
-    product.photo_path = data.get('photo_path', product.photo_path)
-    product.barcode = barcode
+    data = json_body()
+    # Only the fields sent are changed (a partial update must not clear the others)
+    if 'name' in data:
+        product.name = text_field(data, 'name', 'nome', 150, required=True)
+    if 'description' in data:
+        product.description = text_field(data, 'description', 'descrição', 5000)
+    if 'price' in data:
+        price = price_field(data, required=True)
+        product.price = price
+    if 'photo_path' in data:
+        product.photo_path = text_field(data, 'photo_path', 'photo_path', 255) or None
+    if 'barcode' in data:
+        product.barcode = _barcode_field(data, product_id)
+    if 'category_ids' in data:
+        product.categories = _categories_field(data)
+    min_stock = stock_limit_field(data, 'min_stock', 'min_stock') if 'min_stock' in data else product.min_stock
+    max_stock = stock_limit_field(data, 'max_stock', 'max_stock') if 'max_stock' in data else product.max_stock
+    _check_stock_limits(min_stock, max_stock)
     product.min_stock = min_stock
     product.max_stock = max_stock
     db.session.commit()

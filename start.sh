@@ -1,7 +1,3 @@
-mkdir ./.docker/mysql
-docker compose up mysql -d
-sleep 60
-docker compose up -d
-sleep 60
-docker compose exec app flask db upgrade
-docker compose exec app python seeds/seed_data.py
+#!/bin/sh
+# Sobe todo o ambiente: o MySQL fica saudável, o app aplica migrações e dados iniciais e inicia
+docker compose up -d --build

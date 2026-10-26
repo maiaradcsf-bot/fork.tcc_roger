@@ -13,17 +13,23 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - vol_database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
   app:
-    image: python:3.11-slim
+    # Image built from the Dockerfile; the entrypoint applies migrations and the seed on start
+    build: .
+    image: tcc_sesi_app
     container_name: app
+    restart: unless-stopped
     networks:
       - network_tcc
-    working_dir: /app
     volumes:
-      - ./src:/app
-      - ./.docker/requirements.txt:/tmp/requirements.txt:ro
-      - vol_images:/app/static/uploads
+      - vol_images:/app/app/static/uploads
     environment:
       - FLASK_APP=${FLASK_APP}
       # Debug mode stays off: it exposes the Werkzeug debugger (code execution) on the public port
@@ -34,14 +40,13 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      # Optional: password of the initial admin account created by the seed (default dev@123)
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     expose:
       - "5000"
-    command: >
-      sh -c "pip install --no-cache-dir -r /tmp/requirements.txt &&
-             flask db upgrade &&
-             python -m flask run --host=0.0.0.0 --port=5000 --reload"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   proxy:
     image: nginx:latest
@@ -69,7 +74,8 @@ services:
     ports:
       - "${PMA_BIND_ADDRESS:-127.0.0.1}:8080:80"
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
 volumes:
   vol_database:

@@ -4,16 +4,24 @@ from app.api import api_bp
 from app.models.clients import Client
 from app.models.users import User
 from app.models.rules import Rule
-from app.models.client_rules import ClientRule
 from app.models import db
+from app.api.utils import json_body, text_field, email_field, password_field
+from app.permissions_catalog import CLIENT_RULE_NAME
+
+
+def _credentials(data, key='email'):
+    """Login fields as strings; wrong types are a bad request, not a server error."""
+    identifier = data.get(key)
+    password = data.get('password')
+    if not isinstance(identifier, str) or not isinstance(password, str) or not identifier.strip() or not password:
+        return None, None
+    return identifier.strip(), password
 
 
 @api_bp.route('/client/login', methods=['POST'])
 def client_login():
-    data = request.get_json() or {}
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password:
+    email, password = _credentials(json_body())
+    if not email:
         return jsonify({'error': 'email e senha são obrigatórios'}), 400
 
     client = Client.query.filter_by(email=email).first()
@@ -29,10 +37,8 @@ def client_login():
 
 @api_bp.route('/admin/login', methods=['POST'])
 def admin_login():
-    data = request.get_json() or {}
-    username = data.get('username')
-    password = data.get('password')
-    if not username or not password:
+    username, password = _credentials(json_body(), 'username')
+    if not username:
         return jsonify({'error': 'nome de usuário e senha são obrigatórios'}), 400
 
     user = User.query.filter_by(username=username).first()
@@ -46,10 +52,8 @@ def admin_login():
 
 @api_bp.route('/login', methods=['POST'])
 def unified_login():
-    data = request.get_json() or {}
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password:
+    email, password = _credentials(json_body())
+    if not email:
         return jsonify({'error': 'email e senha são obrigatórios'}), 400
 
     # Try client authentication first
@@ -73,13 +77,11 @@ def unified_login():
 
 @api_bp.route('/client/register', methods=['POST'])
 def client_register():
-    data = request.get_json() or {}
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    phone = data.get('phone')
-    if not name or not email or not password:
-        return jsonify({'error': 'name, email e senha são obrigatórios'}), 400
+    data = json_body()
+    name = text_field(data, 'name', 'name', 150, required=True)
+    email = email_field(data, required=True)
+    password = password_field(data, required=True)
+    phone = text_field(data, 'phone', 'telefone', 50) or None
 
     if Client.query.filter_by(email=email).first():
         return jsonify({'error': 'Email já cadastrado'}), 409
@@ -87,18 +89,11 @@ def client_register():
     client = Client(name=name, email=email, phone=phone)
     client.set_password(password)
     client.auth_token = secrets.token_hex(32)
+    # New clients get the default client profile
+    client_rule = Rule.query.filter_by(name=CLIENT_RULE_NAME).first()
+    if client_rule:
+        client.rules = [client_rule]
     db.session.add(client)
-    db.session.flush()
-
-    # vincular cliente à regra padrão de cliente ('cliente' ou 'client') caso exista
-    try:
-        client_rule = Rule.query.filter(Rule.name.in_(['client', 'cliente'])).first()
-        if client_rule:
-            assoc = ClientRule(client_id=client.id, rule_id=client_rule.id)
-            db.session.add(assoc)
-    except Exception:
-        pass
-
     db.session.commit()
     return jsonify({'token': client.auth_token, 'id': client.id}), 201
 

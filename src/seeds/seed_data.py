@@ -13,6 +13,7 @@ from app.models.categories import Category
 from app.models.products import Product
 from app.models.stock import Stock
 from app.models.stock_moves import StockMove
+from app.permissions_catalog import SYSTEM_PERMISSIONS, ADMIN_RULE_NAME, CLIENT_RULE_NAME
 
 
 def seed_data():
@@ -32,71 +33,33 @@ def seed_data():
             db.session.flush()
             return instance, True
 
-        permissions = [
-            ('admin.dashboard.view', 'Visualizar dashboard administrativo'),
-            ('admin.categories.list', 'Listar categorias no admin'),
-            ('admin.categories.create', 'Criar categorias no admin'),
-            ('admin.categories.edit', 'Editar categorias no admin'),
-            ('admin.categories.delete', 'Excluir categorias no admin'),
-            ('admin.products.list', 'Listar produtos no admin'),
-            ('admin.products.create', 'Criar produtos no admin'),
-            ('admin.products.edit', 'Editar produtos no admin'),
-            ('admin.products.delete', 'Excluir produtos no admin'),
-            ('admin.products.import', 'Importar produtos via CSV no admin'),
-            ('admin.stock.moves.list', 'Listar movimentações de estoque no admin'),
-            ('admin.stock.moves.create', 'Registrar movimentações de estoque no admin'),
-            ('admin.stock.moves.edit', 'Editar movimentações de estoque no admin'),
-            ('admin.stock.moves.delete', 'Excluir movimentações de estoque no admin'),
-            ('admin.orders.list', 'Listar pedidos no admin'),
-            ('admin.orders.approve', 'Aprovar pedidos no admin'),
-            ('admin.orders.reject', 'Rejeitar pedidos no admin'),
-            ('admin.orders.cancel', 'Cancelar pedidos no admin'),
-            ('admin.clients.list', 'Listar clientes no admin'),
-            ('admin.clients.view', 'Visualizar dados de cliente no admin'),
-            ('admin.clients.edit', 'Editar clientes no admin'),
-            ('admin.settings.permissions.manage', 'Gerenciar permissões no admin'),
-            ('admin.settings.profiles.manage', 'Gerenciar perfis no admin'),
-            ('admin.settings.users.manage', 'Gerenciar usuários no admin'),
-            ('clients.products.list', 'Listar produtos para clientes'),
-            ('clients.products.view', 'Visualizar produto para cliente'),
-            ('clients.products.request', 'Solicitar produto para cliente'),
-            ('clients.orders.list', 'Listar solicitações para cliente'),
-            ('clients.orders.view', 'Visualizar solicitação para cliente'),
-            ('clients.orders.cancel', 'Cancelar solicitação para cliente'),
-            ('clients.profile.view', 'Visualizar perfil do cliente'),
-            ('clients.profile.edit', 'Editar perfil do cliente'),
-            ('clients.cart.manage', 'Gerenciar carrinho do cliente'),
-        ]
+        permissions = SYSTEM_PERMISSIONS
 
         permission_objects = []
         for name, description in permissions:
             permission, _ = get_or_create(Permission, name=name, defaults={'description': description})
             permission_objects.append(permission)
 
-        administrator, created_admin_rule = get_or_create(Rule, name='administrator', defaults={'description': 'Administrador completo do sistema'})
+        administrator, created_admin_rule = get_or_create(Rule, name=ADMIN_RULE_NAME, defaults={'description': 'Administrador completo do sistema'})
         missing_permissions = [perm for perm in permission_objects if perm not in administrator.permissions]
         if missing_permissions:
             administrator.permissions = administrator.permissions + missing_permissions
 
-        client_rule, created_client_rule = get_or_create(Rule, name='cliente', defaults={'description': 'Regra padrão para clientes'})
+        client_rule, created_client_rule = get_or_create(Rule, name=CLIENT_RULE_NAME, defaults={'description': 'Regra padrão para clientes'})
         client_permissions = [
             perm for perm in permission_objects
             if perm.name.startswith('clients.')
         ]
-        if created_client_rule or not client_rule.permissions:
+        if created_client_rule:
             client_rule.permissions = client_permissions
 
-        admin_user = User.query.filter_by(username='admin').first()
-        if not admin_user:
+        # Runs on every container start: an existing admin is never touched (password, email and
+        # profiles stay as the users left them). The initial password can be set with ADMIN_PASSWORD.
+        if not User.query.filter_by(username='admin').first():
             admin_user = User(username='admin', email='admin@almoxarifado.com')
-            admin_user.set_password('dev@123')
+            admin_user.set_password(os.environ.get('ADMIN_PASSWORD') or 'dev@123')
             admin_user.rules = [administrator]
             db.session.add(admin_user)
-        else:
-            admin_user.email = 'admin@almoxarifado.com'
-            admin_user.set_password('dev@123')
-            if administrator not in admin_user.rules:
-                admin_user.rules.append(administrator)
 
         category_data = [
             {'name': 'Papelaria', 'description': 'Artigos e materiais de papelaria', 'parent': None},
@@ -116,9 +79,8 @@ def seed_data():
             parent = None
             if item['parent']:
                 parent = category_map.get(item['parent']) or Category.query.filter_by(name=item['parent']).first()
+            # existing categories keep the hierarchy the users gave them
             category, _ = get_or_create(Category, name=item['name'], defaults={'description': item['description'], 'parent': parent})
-            if parent and category.parent is None:
-                category.parent = parent
             category_map[item['name']] = category
 
         products_data = [
@@ -179,25 +141,25 @@ def seed_data():
                 'min_stock': min_stock_val,
                 'max_stock': max_stock_val,
             })
+            # Existing products (active or deleted) are left exactly as the users left them:
+            # categories, codes, limits and stock are only set up for products created now
             if not created:
-                updated = False
-                if not product.barcode:
-                    product.barcode = generate_barcode()
-                    updated = True
-                if product.min_stock is None:
-                    product.min_stock = min_stock_val
-                    updated = True
-                if product.max_stock is None:
-                    product.max_stock = max_stock_val
-                    updated = True
-                if updated:
-                    db.session.add(product)
+                continue
             for category_name in product_data['categories']:
                 category = category_map.get(category_name) or Category.query.filter_by(name=category_name).first()
                 if category and category not in product.categories:
                     product.categories.append(category)
 
-            stock, created_stock = get_or_create(Stock, product_id=product.id, defaults={'quantity': random.randint(10, 99)})
+            stock = Stock.query.filter_by(product_id=product.id).first()
+            created_stock = stock is None
+            if created_stock:
+                stock = Stock(product_id=product.id, quantity=random.randint(10, 99))
+                db.session.add(stock)
+                db.session.flush()
+            if created_stock and stock.quantity:
+                # the initial balance is recorded in the history, like any other entry
+                db.session.add(StockMove(stock_id=stock.id, quantity_change=stock.quantity,
+                                         reason='Estoque inicial', move_type='entrada'))
 
             products_with_losses = {
                 'Caneta Esferográfica Azul',
@@ -208,7 +170,8 @@ def seed_data():
             }
             loss_reason = 'Perda - validade vencida'
 
-            if product.name in products_with_losses:
+            # Demo losses only for stock created in this run; re-running must not lower it again
+            if created_stock and product.name in products_with_losses:
                 if stock.quantity is None:
                     stock.quantity = 0
                 # Definir quantidade final abaixo ou no mínimo, para enfatizar baixa de estoque

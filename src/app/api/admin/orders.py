@@ -104,7 +104,7 @@ def admin_get_order(order_id):
     if error:
         return error, status
 
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
     if not order:
         return jsonify({'error': 'Pedido não encontrado'}), 404
     total_value = None

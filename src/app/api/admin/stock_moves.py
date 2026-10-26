@@ -21,8 +21,11 @@ def admin_list_stock_moves():
 
     query = StockMove.query
     if product_id:
+        product_id_int = parse_int(product_id)
+        if product_id_int is None:
+            return jsonify({'error': 'product_id deve ser um número inteiro'}), 400
         # join to stock to filter by product
-        query = query.join(Stock).filter(Stock.product_id == int(product_id))
+        query = query.join(Stock).filter(Stock.product_id == product_id_int)
 
     try:
         if start_date:

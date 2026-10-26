@@ -1,6 +1,7 @@
 from app.api.client import client_bp
-from flask import jsonify, request
-from app.api.utils import client_required, client_permission_required, OPEN_CART_STATUSES, get_product_by_id
+from flask import jsonify
+from app.api.utils import (client_required, client_permission_required, OPEN_CART_STATUSES, get_product_by_id,
+                           json_body, parse_int, text_field, MAX_STOCK_QUANTITY)
 from app.models.carts import Cart
 from app.models.cart_items import CartItem
 from app.models.order_items import OrderItem
@@ -57,13 +58,10 @@ def add_cart_item(cart_id):
     if not cart or cart.status not in OPEN_CART_STATUSES:
         return jsonify({'error': 'Carrinho não encontrado ou não está aberto'}), 404
 
-    data = request.get_json() or {}
-    product_id = data.get('product_id')
-    try:
-        quantity = int(data.get('quantity', 1))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'product_id e quantidade positiva são obrigatórios'}), 400
-    if not product_id or quantity < 1:
+    data = json_body()
+    product_id = parse_int(data.get('product_id'))
+    quantity = parse_int(data.get('quantity', 1))
+    if product_id is None or product_id <= 0 or quantity is None or quantity < 1 or quantity > MAX_STOCK_QUANTITY:
         return jsonify({'error': 'product_id e quantidade positiva são obrigatórios'}), 400
 
     product = get_product_by_id(product_id)
@@ -106,13 +104,9 @@ def update_cart_item(cart_id, item_id):
     if not item:
         return jsonify({'error': 'Item do carrinho não encontrado'}), 404
 
-    data = request.get_json() or {}
-    try:
-        quantity = int(data.get('quantity', 0))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'quantidade positiva é obrigatória'}), 400
-
-    if quantity < 1:
+    data = json_body()
+    quantity = parse_int(data.get('quantity'))
+    if quantity is None or quantity < 1 or quantity > MAX_STOCK_QUANTITY:
         return jsonify({'error': 'quantidade positiva é obrigatória'}), 400
 
     stock_quantity = item.product.stock.quantity if item.product and item.product.stock else 0
@@ -172,8 +166,7 @@ def checkout_cart(cart_id):
                 'requested_quantity': item.quantity
             }), 400
 
-    data = request.get_json() or {}
-    reason = data.get('reason')
+    reason = text_field(json_body(), 'reason', 'motivo', 2000) or None
 
     total = 0
     order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0, reason=reason)
@@ -184,10 +177,6 @@ def checkout_cart(cart_id):
         order_item = OrderItem(order=order, product=item.product, quantity=item.quantity, unit_price=item.product.price)
         db.session.add(order_item)
         total += float(item.product.price or 0) * item.quantity
-        try:
-            current_app.logger.info(f"[Checkout] order_id={getattr(order,'id',None)} item product_id={getattr(item.product,'id',None)} qty={item.quantity} (no stock change at checkout)")
-        except Exception:
-            pass
 
     cart.status = CartStatus.CLOSED.value
     order.total = total

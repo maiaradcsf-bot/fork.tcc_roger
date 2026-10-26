@@ -1,6 +1,6 @@
 from app.api.admin import admin_bp
-from flask import jsonify, request
-from app.api.utils import admin_required, permission_required
+from flask import jsonify
+from app.api.utils import admin_required, permission_required, json_body
 from app.models.clients import Client
 from app.models.orders import Order
 from app.models import db
@@ -29,19 +29,14 @@ def admin_update_client_status(client_id):
     if error:
         return error, status
 
-    client = Client.query.get(client_id)
+    client = db.session.get(Client, client_id)
     if not client:
         return jsonify({'error': 'Cliente não encontrado'}), 404
 
-    data = request.get_json() or {}
-    if 'active' not in data:
-        return jsonify({'error': 'status ativo é obrigatório'}), 400
-
-    active_value = data.get('active')
-    if isinstance(active_value, str):
-        active = active_value.strip().lower() in ('1', 'true', 'yes', 'on')
-    else:
-        active = bool(active_value)
+    data = json_body()
+    active = data.get('active')
+    if not isinstance(active, bool):
+        return jsonify({'error': 'active é obrigatório e deve ser true ou false'}), 400
 
     client.active = active
     if not client.active:
@@ -87,7 +82,7 @@ def admin_client_details(client_id):
     if error:
         return error, status
 
-    client = Client.query.get(client_id)
+    client = db.session.get(Client, client_id)
     if not client:
         return jsonify({'error': 'Cliente não encontrado'}), 404
 

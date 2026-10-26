@@ -1,6 +1,9 @@
 import os
 import sys
 
+# bcrypt cost reduced only for the tests (production default is 12)
+os.environ.setdefault('BCRYPT_ROUNDS', '4')
+
 import pytest
 from sqlalchemy.pool import StaticPool
 

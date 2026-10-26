@@ -3,3 +3,18 @@ Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 PyMySQL==1.1.0
 cryptography==42.0.5
+bcrypt==4.2.0
+gunicorn==23.0.0
+# versões transitivas fixadas (validadas pelos testes): evitam upgrades silenciosos a cada build
+SQLAlchemy==2.1.6
+alembic==1.20.1
+Werkzeug==3.1.9
+Jinja2==3.1.6
+click==8.5.0
+itsdangerous==2.2.0
+blinker==1.9.0
+Mako==1.4.3
+MarkupSafe==3.0.4
+typing_extensions==4.16.0
+cffi==2.1.1
+pycparser==3.12

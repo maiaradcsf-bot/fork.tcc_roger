@@ -1,6 +1,6 @@
 from app.models import db
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+from app.models.passwords import hash_password, verify_password
 
 class Client(db.Model):
     __tablename__ = 'clients'
@@ -22,10 +22,14 @@ class Client(db.Model):
     rules = db.relationship('Rule', secondary='client_rules', back_populates='clients')
 
     def set_password(self, password):
-        self.password = generate_password_hash(password)
+        self.password = hash_password(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password, password)
+        matches, upgraded_hash = verify_password(self.password, password)
+        if upgraded_hash:
+            # legacy werkzeug hash: switch to bcrypt; persisted by the caller's commit
+            self.password = upgraded_hash
+        return matches
 
     def has_permission(self, permission_name):
         return any(

@@ -1,10 +1,12 @@
 import os
 import csv
+import math
 import secrets
 
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required, permission_required, IMPORT_TMP_FOLDER, lock_stocks, stock_transaction, MAX_STOCK_QUANTITY
+from app.api.utils import (admin_required, permission_required, IMPORT_TMP_FOLDER, lock_stocks, stock_transaction,
+                           MAX_STOCK_QUANTITY, json_body, ValidationError)
 from app.models.products import Product
 from app.models.categories import Category
 from app.models.stock import Stock
@@ -98,6 +100,16 @@ def _split_categories(raw):
     return [part.strip() for part in raw.split(separator) if part.strip()]
 
 
+def _import_request():
+    data = json_body()
+    import_id = data.get('import_id')
+    mapping = data.get('mapping') or {}
+    if not isinstance(import_id, str) or not isinstance(mapping, dict) or not all(
+            isinstance(value, (str, type(None))) for value in mapping.values()):
+        raise ValidationError('import_id (texto) e mapping (objeto de colunas) são obrigatórios')
+    return import_id, mapping
+
+
 def _build_rows(import_id, mapping):
     """Lê o CSV temporário e monta a lista de linhas (criação/atualização/inválidas)
     de acordo com o mapeamento de colunas informado. Usado tanto na prévia quanto no commit."""
@@ -122,6 +134,7 @@ def _build_rows(import_id, mapping):
         return value.strip() if value is not None else None
 
     results = []
+    seen_barcodes = set()
     for i, row in enumerate(data_rows, start=2):  # linha 1 é o cabeçalho
         name = cell(row, 'name')
         price_raw = cell(row, 'price')
@@ -138,7 +151,7 @@ def _build_rows(import_id, mapping):
             errors.append('Nome é obrigatório')
         if not price_raw:
             errors.append('Preço é obrigatório')
-        elif price is None:
+        elif price is None or not math.isfinite(price) or price < 0 or price > 99999999.99:
             errors.append('Preço inválido')
         if min_stock is not None and min_stock < 0:
             errors.append('Estoque mínimo inválido')
@@ -147,11 +160,21 @@ def _build_rows(import_id, mapping):
         if stock_quantity is not None and not 0 <= stock_quantity <= MAX_STOCK_QUANTITY:
             errors.append('Quantidade em estoque inválida')
 
+        if name and len(name) > 150:
+            errors.append('Nome pode ter no máximo 150 caracteres')
+        if barcode and len(barcode) > 64:
+            errors.append('Código de barras pode ter no máximo 64 caracteres')
+
         existing_product = None
         if barcode:
-            existing_product = Product.query.filter(
-                Product.barcode == barcode, Product.deleted_at.is_(None)
-            ).first()
+            if barcode in seen_barcodes:
+                errors.append('Código de barras repetido no arquivo')
+            seen_barcodes.add(barcode)
+            same_barcode = Product.query.filter(Product.barcode == barcode).first()
+            if same_barcode is not None and same_barcode.deleted_at is not None:
+                errors.append('Código de barras pertence a um produto excluído')
+            elif same_barcode is not None:
+                existing_product = same_barcode
 
         action = 'invalid' if errors else ('update' if existing_product else 'create')
 
@@ -233,8 +256,8 @@ def admin_import_preview():
     if error:
         return error, status
 
-    data = request.get_json() or {}
-    results, err = _build_rows(data.get('import_id'), data.get('mapping') or {})
+    import_id, mapping = _import_request()
+    results, err = _build_rows(import_id, mapping)
     if err:
         return err
 
@@ -255,9 +278,8 @@ def admin_import_commit():
     if error:
         return error, status
 
-    data = request.get_json() or {}
-    import_id = data.get('import_id')
-    results, err = _build_rows(import_id, data.get('mapping') or {})
+    import_id, mapping = _import_request()
+    results, err = _build_rows(import_id, mapping)
     if err:
         return err
 
@@ -280,7 +302,7 @@ def admin_import_commit():
             continue
 
         row_data = entry['data']
-        product = Product.query.get(entry['product_id']) if entry['product_id'] else None
+        product = db.session.get(Product, entry['product_id']) if entry['product_id'] else None
 
         categories = []
         for category_name in row_data['categories']:

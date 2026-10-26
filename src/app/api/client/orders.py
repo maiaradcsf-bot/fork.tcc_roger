@@ -1,11 +1,11 @@
 from app.api.client import client_bp
-from flask import jsonify, request, current_app
-from app.api.utils import normalize_order_status, get_product_by_id, OPEN_CART_STATUSES, client_required, client_permission_required, stock_transaction
+from flask import jsonify, request
+from app.api.utils import (normalize_order_status, get_product_by_id, client_required, client_permission_required,
+                           stock_transaction, json_body, parse_int, ValidationError, MAX_STOCK_QUANTITY)
 from app.models.orders import Order
 from app.models.carts import Cart
 from app.models.cart_items import CartItem
 from app.models.order_items import OrderItem
-from app.models.products import Product
 from app.models import db
 from app.models.status_enums import CartStatus, OrderStatus
 from datetime import datetime
@@ -45,19 +45,12 @@ def client_orders():
             'quantity_total': sum([item.quantity for item in order.items]) if order.items else 0,
             'cart_id': order.cart_id,
             'created_at': order.created_at.isoformat() if order.created_at else None,
-            'approved_user_id': order.approved_user_id,
             'approved_at': order.approved_at.isoformat() if order.approved_at else None,
-            'approved_by_name': order.approved_by.username if order.approved_by else None,
-            'refused_user_id': order.refused_user_id,
             'refused_at': order.refused_at.isoformat() if order.refused_at else None,
-            'refused_by_name': order.refused_by.username if order.refused_by else None,
-            'finished_user_id': order.finished_user_id,
             'finished_at': order.finished_at.isoformat() if order.finished_at else None,
-            'finished_by_name': order.finished_by.username if order.finished_by else None,
-            'canceled_user_id': order.canceled_user_id,
             'canceled_client_id': order.canceled_client_id,
             'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-            'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
+            'canceled_by_name': order.canceled_by_client.name if order.canceled_by_client else None,
             'items': [{
                 'product': item.product.name if item.product else None,
                 'product_name': item.product.name if item.product else None,
@@ -77,7 +70,7 @@ def client_get_order(order_id):
     if error:
         return error, status
 
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
     if not order or order.client_id != client.id:
         return jsonify({'error': 'Pedido não encontrado'}), 404
 
@@ -103,19 +96,12 @@ def client_get_order(order_id):
         'total': float(total_value),
         'reason': order.reason,
         'created_at': order.created_at.isoformat() if order.created_at else None,
-        'approved_user_id': order.approved_user_id,
         'approved_at': order.approved_at.isoformat() if order.approved_at else None,
-        'approved_by_name': order.approved_by.username if order.approved_by else None,
-        'refused_user_id': order.refused_user_id,
         'refused_at': order.refused_at.isoformat() if order.refused_at else None,
-        'refused_by_name': order.refused_by.username if order.refused_by else None,
-        'finished_user_id': order.finished_user_id,
         'finished_at': order.finished_at.isoformat() if order.finished_at else None,
-        'finished_by_name': order.finished_by.username if order.finished_by else None,
-        'canceled_user_id': order.canceled_user_id,
         'canceled_client_id': order.canceled_client_id,
         'canceled_at': order.canceled_at.isoformat() if order.canceled_at else None,
-        'canceled_by_name': order.canceled_by.username if order.canceled_by else (order.canceled_by_client.name if order.canceled_by_client else None),
+        'canceled_by_name': order.canceled_by_client.name if order.canceled_by_client else None,
         'items': [{
             'product': item.product.name if item.product else None,
             'product_name': item.product.name if item.product else None,
@@ -168,6 +154,28 @@ def client_update_order_status(order_id):
     return jsonify({'id': order.id, 'status': order.status})
 
 
+MAX_ORDER_LINES = 100
+
+
+def _order_items(data):
+    """Validated order lines merged per product: {product_id: quantity}."""
+    items = data.get('items')
+    if not isinstance(items, list) or not items:
+        raise ValidationError('lista de itens é obrigatória')
+    if len(items) > MAX_ORDER_LINES:
+        raise ValidationError(f'O pedido pode ter no máximo {MAX_ORDER_LINES} itens')
+    quantities = {}
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValidationError('Cada item deve ser um objeto com product_id e quantity')
+        product_id = parse_int(item.get('product_id') if item.get('product_id') is not None else item.get('id'))
+        quantity = parse_int(item.get('quantity'))
+        if product_id is None or product_id <= 0 or quantity is None or quantity <= 0 or quantity > MAX_STOCK_QUANTITY:
+            raise ValidationError('Cada item requer product_id e quantidade inteira positiva')
+        quantities[product_id] = quantities.get(product_id, 0) + quantity
+    return quantities
+
+
 @client_bp.route('/orders', methods=['POST'])
 @client_permission_required('clients.products.request')
 def client_create_order():
@@ -175,60 +183,33 @@ def client_create_order():
     if error:
         return error, status
 
-    data = request.get_json() or {}
-    items = data.get('items')
-    if not items or not isinstance(items, list):
-        return jsonify({'error': 'lista de itens é obrigatória'}), 400
+    quantities = _order_items(json_body())
+    products = {}
+    for product_id, qty in quantities.items():
+        product = get_product_by_id(product_id)
+        if not product:
+            return jsonify({'error': f'Produto {product_id} não encontrado'}), 404
+        # Repeated lines of the same product are added up before comparing with the stock
+        stock_quantity = product.stock.quantity if product.stock else 0
+        if qty > stock_quantity:
+            return jsonify({
+                'error': f'Quantidade solicitada excede o estoque disponível do produto {product_id}',
+                'product_id': product_id,
+                'stock': stock_quantity,
+                'requested_quantity': qty
+            }), 400
+        products[product_id] = product
 
-    total = 0.0
     cart = Cart(client=client, status=CartStatus.CLOSED.value)
-    db.session.add(cart)
-    db.session.flush()
-
     order = Order(client=client, cart=cart, status=OrderStatus.PENDING.value, total=0)
-    db.session.add(order)
-    db.session.flush()
-
-    try:
-        for it in items:
-            product_id = it.get('product_id') or it.get('id')
-            qty = int(it.get('quantity', 0) or 0)
-            if not product_id or qty <= 0:
-                db.session.rollback()
-                return jsonify({'error': 'Cada item requer product_id e quantidade positiva'}), 400
-
-            product = get_product_by_id(product_id)
-            if not product:
-                db.session.rollback()
-                return jsonify({'error': f'Produto {product_id} não encontrado'}), 404
-
-            stock_quantity = product.stock.quantity if product.stock else 0
-            if qty > stock_quantity:
-                db.session.rollback()
-                return jsonify({
-                    'error': f'Quantidade solicitada excede o estoque disponível for product {product_id}',
-                    'product_id': product_id,
-                    'stock': stock_quantity,
-                    'requested_quantity': qty
-                }), 400
-
-            unit_price = product.price or 0
-            cart_item = CartItem(cart=cart, product=product, quantity=qty)
-            order_item = OrderItem(order=order, product=product, quantity=qty, unit_price=unit_price)
-            db.session.add(cart_item)
-            db.session.add(order_item)
-            total += float(unit_price) * qty
-
-            if product.stock:
-                try:
-                    current_app.logger.info(f"[OrderCreate] order_id={order.id} item product_id={product_id} qty={qty} (no stock change at creation)")
-                except Exception:
-                    pass
-
-        order.total = total
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': 'Falha ao criar pedido', 'details': str(e)}), 500
-
+    db.session.add_all([cart, order])
+    total = 0.0
+    for product_id, qty in quantities.items():
+        product = products[product_id]
+        unit_price = product.price or 0
+        db.session.add(CartItem(cart=cart, product=product, quantity=qty))
+        db.session.add(OrderItem(order=order, product=product, quantity=qty, unit_price=unit_price))
+        total += float(unit_price) * qty
+    order.total = total
+    db.session.commit()
     return jsonify({'order_id': order.id, 'cart_id': cart.id, 'total': float(order.total), 'status': order.status}), 201
