@@ -1,6 +1,6 @@
 from app.api.client import client_bp
 from flask import jsonify, request, current_app
-from app.api.utils import normalize_order_status, get_product_by_id, OPEN_CART_STATUSES, client_required, client_permission_required
+from app.api.utils import normalize_order_status, get_product_by_id, OPEN_CART_STATUSES, client_required, client_permission_required, stock_transaction
 from app.models.orders import Order
 from app.models.carts import Cart
 from app.models.cart_items import CartItem
@@ -130,27 +130,34 @@ def client_get_order(order_id):
 
 
 @client_bp.route('/orders/<int:order_id>/status', methods=['PATCH'])
+@stock_transaction
 @client_permission_required('clients.orders.cancel')
 def client_update_order_status(order_id):
     client, error, status = client_required()
     if error:
         return error, status
 
-    order = Order.query.get(order_id)
-    if not order or order.client_id != client.id:
-        return jsonify({'error': 'Pedido não encontrado'}), 404
-
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Corpo da requisição inválido'}), 400
     action = data.get('action')
-    if not action:
+    if not isinstance(action, str) or not action.strip():
         return jsonify({'error': 'ação é obrigatória'}), 400
 
-    action = action.lower()
+    action = action.strip().lower()
     if action not in {'cancel', 'cancelled', 'canceled'}:
         return jsonify({'error': 'Ação não suportada'}), 400
 
+    # Lock the order so an admin approving/finishing it at the same time either finishes
+    # first (and this cancel is refused) or waits and then sees it cancelled
+    order = Order.query.filter(Order.id == order_id).with_for_update().populate_existing().one_or_none()
+    if not order or order.client_id != client.id:
+        db.session.rollback()
+        return jsonify({'error': 'Pedido não encontrado'}), 404
+
     current_status = normalize_order_status(order.status)
     if current_status != OrderStatus.PENDING.value:
+        db.session.rollback()
         return jsonify({'error': 'Pedido só pode ser cancelado quando estiver pendente'}), 400
 
     new_status = OrderStatus.CANCELLED.value

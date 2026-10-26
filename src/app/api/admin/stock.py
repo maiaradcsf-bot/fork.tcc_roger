@@ -1,6 +1,6 @@
 from app.api.admin import admin_bp
-from flask import jsonify, current_app
-from app.api.utils import admin_required, permission_required, get_product_by_id
+from flask import jsonify, current_app, request
+from app.api.utils import admin_required, permission_required, get_product_by_id, parse_int, stock_transaction, MAX_STOCK_QUANTITY
 from app.models.stock import Stock
 from app.models.stock_moves import StockMove
 from app.models import db
@@ -22,17 +22,24 @@ def admin_list_stock():
 
 
 @admin_bp.route('/stock', methods=['POST'])
+@stock_transaction
 @permission_required('admin.stock.moves.create')
 def admin_create_stock():
     user, error, status = admin_required()
     if error:
         return error, status
-    data = request.get_json() or {}
-    product_id = data.get('product_id')
-    quantity = data.get('quantity', 0)
-    
-    if not product_id:
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Corpo da requisição inválido'}), 400
+
+    if data.get('product_id') in (None, ''):
         return jsonify({'error': 'product_id é obrigatório'}), 400
+    product_id = parse_int(data.get('product_id'))
+    if product_id is None:
+        return jsonify({'error': 'product_id deve ser um número inteiro'}), 400
+    quantity = parse_int(data.get('quantity', 0))
+    if quantity is None or quantity < 0 or quantity > MAX_STOCK_QUANTITY:
+        return jsonify({'error': 'quantity deve ser um número inteiro maior ou igual a zero'}), 400
     
     product = get_product_by_id(product_id)
     if not product:

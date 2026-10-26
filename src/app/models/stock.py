@@ -5,6 +5,7 @@ from sqlalchemy import event
 
 class Stock(db.Model):
     __tablename__ = 'stock'
+    __table_args__ = (db.UniqueConstraint('product_id', name='uq_stock_product_id'),)
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)

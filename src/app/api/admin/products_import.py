@@ -4,7 +4,7 @@ import secrets
 
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import admin_required, permission_required, IMPORT_TMP_FOLDER
+from app.api.utils import admin_required, permission_required, IMPORT_TMP_FOLDER, lock_stocks, stock_transaction, MAX_STOCK_QUANTITY
 from app.models.products import Product
 from app.models.categories import Category
 from app.models.stock import Stock
@@ -87,7 +87,7 @@ def _parse_int(value):
         return None
     try:
         return int(float(text.replace(',', '.')))
-    except ValueError:
+    except (ValueError, OverflowError):
         return None
 
 
@@ -144,6 +144,8 @@ def _build_rows(import_id, mapping):
             errors.append('Estoque mínimo inválido')
         if max_stock is not None and max_stock < 0:
             errors.append('Estoque máximo inválido')
+        if stock_quantity is not None and not 0 <= stock_quantity <= MAX_STOCK_QUANTITY:
+            errors.append('Quantidade em estoque inválida')
 
         existing_product = None
         if barcode:
@@ -246,6 +248,7 @@ def admin_import_preview():
 
 
 @admin_bp.route('/products/import/commit', methods=['POST'])
+@stock_transaction
 @permission_required('admin.products.import')
 def admin_import_commit():
     user, error, status = admin_required()
@@ -262,6 +265,13 @@ def admin_import_commit():
     updated = 0
     skipped = 0
     row_errors = []
+
+    # Lock the stock of every existing product whose quantity will be set, in product order,
+    # so the differences recorded below are computed from the current balance
+    lock_stocks([
+        entry['product_id'] for entry in results
+        if entry['action'] != 'invalid' and entry['product_id'] and entry['data']['stock_quantity'] is not None
+    ])
 
     for entry in results:
         if entry['action'] == 'invalid':

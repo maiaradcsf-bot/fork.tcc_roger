@@ -1,6 +1,6 @@
 from app.api.admin import admin_bp
 from flask import jsonify, request
-from app.api.utils import normalize_order_status, get_product_by_id, admin_required, permission_required
+from app.api.utils import normalize_order_status, admin_required, permission_required, lock_stocks, stock_transaction
 from app.models.orders import Order
 from app.models.stock import Stock
 from app.models.stock_moves import StockMove
@@ -8,16 +8,40 @@ from app.models.order_items import OrderItem
 from app.models import db
 from app.models.status_enums import OrderStatus
 from datetime import datetime
-from sqlalchemy.orm import joinedload
 
 
-def _get_or_create_locked_stock(product):
-    stock = Stock.query.filter_by(product_id=product.id).with_for_update().populate_existing().first()
-    if not stock:
-        stock = Stock(product_id=product.id, quantity=0)
-        db.session.add(stock)
-        db.session.flush()
-    return stock
+# Raw status values that normalize to 'approved' (older rows may still use the Portuguese one)
+APPROVED_STATUS_VALUES = [OrderStatus.APPROVED.value, 'aprovado']
+
+
+def _requested_by_product(order):
+    requested = {}
+    for item in order.items or []:
+        if not item.product:
+            continue
+        entry = requested.setdefault(item.product.id, {'product': item.product, 'requested': 0})
+        entry['requested'] += int(item.quantity or 0)
+    return requested
+
+
+def _committed_by_product(product_ids, exclude_order_id):
+    """Quantities of each product held by approved orders that were not picked up yet."""
+    rows = db.session.query(OrderItem.product_id, db.func.sum(OrderItem.quantity)).join(
+        Order, Order.id == OrderItem.order_id
+    ).filter(
+        Order.status.in_(APPROVED_STATUS_VALUES),
+        Order.id != exclude_order_id,
+        OrderItem.product_id.in_(list(product_ids)),
+    ).group_by(OrderItem.product_id).all()
+    return {product_id: int(total or 0) for product_id, total in rows}
+
+
+def _negative_stock_response(product, quantity):
+    return jsonify({
+        'error': f'Saldo de estoque inconsistente para {product.name} ({quantity}). Corrija o estoque antes de continuar.',
+        'code': 'inconsistent_stock',
+        'product_id': product.id,
+    }), 409
 
 
 @admin_bp.route('/orders', methods=['GET'])
@@ -133,26 +157,31 @@ def admin_get_order(order_id):
 # Single source of truth for admin order actions: the target status is always derived
 # from the action, and each action requires its own permission. Finishing (pick-up)
 # has no dedicated permission in the system and reuses admin.orders.approve.
+# locks_stock: the action reads or changes stock, so the order's stock rows are locked first.
 ORDER_ACTIONS = {
     'approve': {
         'status': OrderStatus.APPROVED.value,
         'permission': 'admin.orders.approve',
         'from': {OrderStatus.PENDING.value},
+        'locks_stock': True,
     },
     'reject': {
         'status': OrderStatus.REJECTED.value,
         'permission': 'admin.orders.reject',
         'from': {OrderStatus.PENDING.value},
+        'locks_stock': False,
     },
     'finish': {
         'status': OrderStatus.FINISHED.value,
         'permission': 'admin.orders.approve',
         'from': {OrderStatus.APPROVED.value},
+        'locks_stock': True,
     },
     'cancel': {
         'status': OrderStatus.CANCELLED.value,
         'permission': 'admin.orders.cancel',
         'from': {OrderStatus.PENDING.value, OrderStatus.APPROVED.value, OrderStatus.FINISHED.value},
+        'locks_stock': True,
     },
 }
 
@@ -167,6 +196,7 @@ ORDER_ACTION_ALIASES = {
 
 
 @admin_bp.route('/orders/<int:order_id>/status', methods=['PATCH'])
+@stock_transaction
 def admin_update_order_status(order_id):
     user, error, status = admin_required()
     if error:
@@ -196,10 +226,15 @@ def admin_update_order_status(order_id):
         if not isinstance(requested_status, str) or normalize_order_status(requested_status.strip()) != new_status:
             return jsonify({'error': 'Status informado não corresponde à ação'}), 400
 
-    order = Order.query.options(
-        joinedload(Order.items).joinedload(OrderItem.product)
-    ).filter(Order.id == order_id).with_for_update().one_or_none()
+    # Items never change after the order is created, so their products can be read before
+    # locking. Stock rows are locked first (ascending product_id), then the order row, then
+    # stock moves: the same order every stock route follows, which prevents deadlocks.
+    product_ids = [product_id for (product_id,) in db.session.query(OrderItem.product_id).filter(OrderItem.order_id == order_id).all()]
+    stocks = lock_stocks(product_ids) if action_config['locks_stock'] else {}
+
+    order = Order.query.filter(Order.id == order_id).with_for_update().populate_existing().one_or_none()
     if not order:
+        db.session.rollback()
         return jsonify({'error': 'Pedido não encontrado'}), 404
 
     current_status = normalize_order_status(order.status)
@@ -210,34 +245,63 @@ def admin_update_order_status(order_id):
     current_time = datetime.utcnow()
 
     client_name = (order.client.name if getattr(order, 'client', None) and getattr(order.client, 'name', None) else 'Desconhecido')
+    response = {}
+
+    # Approving commits stock to the order: the free quantity (stock minus what other approved,
+    # not yet picked-up orders hold) must cover it. There is no override for this check.
+    if new_status == OrderStatus.APPROVED.value:
+        requested_by_product = _requested_by_product(order)
+        committed = _committed_by_product(requested_by_product.keys(), order.id)
+        shortages = []
+        for product_id, entry in sorted(requested_by_product.items()):
+            product = entry['product']
+            stock = stocks.get(product_id)
+            available = stock.quantity if stock and stock.quantity is not None else 0
+            if available < 0:
+                db.session.rollback()
+                return _negative_stock_response(product, available)
+            free = available - committed.get(product_id, 0)
+            if entry['requested'] > free:
+                shortages.append({
+                    'product_id': product_id,
+                    'product_name': product.name,
+                    'requested': entry['requested'],
+                    'available': available,
+                    'committed': committed.get(product_id, 0),
+                    'free': free,
+                })
+        if shortages:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Estoque livre insuficiente para aprovar o pedido (considerando outros pedidos aprovados e não retirados)',
+                'code': 'insufficient_committed_stock',
+                'shortages': shortages,
+            }), 409
 
     # Finishing withdraws the items from stock; if stock is short the request is refused
     # unless the admin explicitly accepts withdrawing only what is available (allow_partial)
     if new_status == OrderStatus.FINISHED.value:
-        requested_by_product = {}
-        for item in order.items or []:
-            if not item.product:
-                continue
-            entry = requested_by_product.setdefault(item.product.id, {'product': item.product, 'requested': 0})
-            entry['requested'] += int(item.quantity or 0)
-
+        requested_by_product = _requested_by_product(order)
         withdrawals = []
         shortages = []
-        for entry in requested_by_product.values():
+        for product_id, entry in sorted(requested_by_product.items()):
             product = entry['product']
-            stock = _get_or_create_locked_stock(product)
-            available = max(stock.quantity or 0, 0)
+            stock = stocks.get(product_id)
+            available = stock.quantity if stock and stock.quantity is not None else 0
+            if available < 0:
+                db.session.rollback()
+                return _negative_stock_response(product, available)
             requested = entry['requested']
             if requested > available:
                 shortages.append({
-                    'product_id': product.id,
+                    'product_id': product_id,
                     'product_name': product.name,
                     'requested': requested,
                     'available': available,
                 })
-            withdrawals.append((stock, min(requested, available)))
+            withdrawals.append((product, stock, requested, min(requested, available)))
 
-        if shortages and not data.get('allow_partial'):
+        if shortages and data.get('allow_partial') is not True:
             db.session.rollback()
             return jsonify({
                 'error': 'Estoque insuficiente para concluir a retirada',
@@ -245,26 +309,42 @@ def admin_update_order_status(order_id):
                 'shortages': shortages,
             }), 409
 
+        if sum(quantity for _, _, _, quantity in withdrawals) <= 0:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Nenhum item do pedido tem estoque disponível para retirada',
+                'code': 'no_stock_available',
+                'shortages': shortages,
+            }), 409
+
         reason = f'Solicitação de retirada #{order.id}, Cliente #{order.client_id} - {client_name}'
-        for stock, quantity in withdrawals:
+        delivered = []
+        for product, stock, requested, quantity in withdrawals:
+            delivered.append({'product_id': product.id, 'product_name': product.name, 'requested': requested, 'withdrawn': quantity})
             if quantity <= 0:
                 continue
-            stock.quantity = (stock.quantity or 0) - quantity
+            stock.quantity = stock.quantity - quantity
             db.session.add(StockMove(
                 stock=stock, quantity_change=-quantity, reason=reason,
                 move_type='saida', user_id=user.id, order_id=order.id,
             ))
+        response['withdrawn'] = delivered
+        response['partial'] = bool(shortages)
 
-    # Cancelling a finished order returns exactly what its withdrawals took out of stock
+    # Cancelling a finished order returns exactly what its withdrawals took out of stock.
+    # Already reverted moves are skipped, and a cancelled order accepts no further action,
+    # so the return can never happen twice.
     if new_status == OrderStatus.CANCELLED.value and current_status == OrderStatus.FINISHED.value:
         withdrawals = StockMove.query.filter(
             StockMove.order_id == order.id,
             StockMove.is_reversal.is_(False),
             StockMove.reverted_at.is_(None),
-        ).with_for_update().all()
+        ).order_by(StockMove.id).with_for_update().all()
         reason = f'Estorno de estoque - pedido #{order.id} cancelado após retirada, Cliente #{order.client_id} - {client_name}'
+        locked_stock_ids = {stock.id for stock in stocks.values()}
         for move in withdrawals:
-            Stock.query.filter_by(id=move.stock_id).with_for_update().populate_existing().first()
+            if move.stock_id not in locked_stock_ids:
+                Stock.query.filter_by(id=move.stock_id).with_for_update().populate_existing().first()
             db.session.add(move.revert(user.id, reason))
 
     if new_status == OrderStatus.APPROVED.value:
@@ -282,4 +362,4 @@ def admin_update_order_status(order_id):
 
     order.status = new_status
     db.session.commit()
-    return jsonify({'id': order.id, 'status': order.status})
+    return jsonify({'id': order.id, 'status': order.status, **response})
