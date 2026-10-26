@@ -528,3 +528,45 @@ def test_import_unparseable_quantity_is_ignored_without_500(client, env):
     assert resp.status_code == 200
     assert resp.get_json()['updated'] == 1
     assert qty(p) == 5
+
+
+# --- POST /admin/stock: entrada inicial no histórico ---------------------------------------------
+
+def test_create_stock_with_quantity_records_initial_entry(client, env):
+    p = env['product']('Sem estoque')
+    resp = admin_post(client, '/stock', {'product_id': p, 'quantity': 7})
+    assert resp.status_code == 201
+    assert resp.get_json()['quantity'] == 7
+    stock = Stock.query.filter_by(product_id=p).one()
+    moves = StockMove.query.filter_by(stock_id=stock.id).all()
+    assert [(m.quantity_change, m.move_type, m.reason, m.user_id, m.order_id) for m in moves] == [
+        (7, 'entrada', 'Estoque inicial', env['admin_id'], None)
+    ]
+    assert_ledger_consistent()
+
+
+def test_create_stock_with_zero_records_no_move(client, env):
+    p = env['product']('Sem estoque')
+    assert admin_post(client, '/stock', {'product_id': p, 'quantity': 0}).status_code == 201
+    stock = Stock.query.filter_by(product_id=p).one()
+    assert stock.quantity == 0
+    assert StockMove.query.filter_by(stock_id=stock.id).count() == 0
+    assert_ledger_consistent()
+
+
+def test_create_stock_respects_max_stock(client, env):
+    p = env['product']('Limitado', max_stock=5)
+    assert admin_post(client, '/stock', {'product_id': p, 'quantity': 6}).status_code == 400
+    assert Stock.query.filter_by(product_id=p).count() == 0
+    assert admin_post(client, '/stock', {'product_id': p, 'quantity': 5}).status_code == 201
+    assert qty(p) == 5
+    assert_ledger_consistent()
+
+
+def test_initial_entry_can_be_reverted_like_any_manual_entry(client, env):
+    p = env['product']('Sem estoque')
+    admin_post(client, '/stock', {'product_id': p, 'quantity': 4})
+    move = StockMove.query.join(Stock).filter(Stock.product_id == p).one()
+    assert admin_post(client, f'/stock/moves/{move.id}/revert').status_code == 201
+    assert qty(p) == 0
+    assert_ledger_consistent()

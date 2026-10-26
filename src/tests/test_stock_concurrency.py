@@ -621,6 +621,16 @@ def test_failure_during_manual_move_keeps_balance_and_creates_no_stock(env, monk
     assert_ledger_consistent(env)
 
 
+def test_failure_during_initial_entry_creates_no_stock(env, monkeypatch):
+    import app.api.admin.stock as stock_module
+    p = env['product']('Novo')
+    monkeypatch.setattr(stock_module, 'StockMove', _failing_after(StockMove, 0))
+    with pytest.raises(RuntimeError, match='falha simulada'):
+        admin(env['app'].test_client(), 'POST', '/stock', {'product_id': p, 'quantity': 5})
+    assert env['read'](lambda: Stock.query.filter_by(product_id=p).count()) == 0
+    assert_ledger_consistent(env)
+
+
 def _upload_and_commit(client, csv_text):
     upload = client.post('/api/admin/products/import/upload', headers={'Authorization': 'Bearer admin-token'},
                          data={'file': (io.BytesIO(csv_text.encode()), 'produtos.csv')}, content_type='multipart/form-data')

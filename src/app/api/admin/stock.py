@@ -48,9 +48,20 @@ def admin_create_stock():
     existing_stock = Stock.query.filter_by(product_id=product_id).first()
     if existing_stock:
         return jsonify({'error': 'Estoque já existe para este produto'}), 400
-    
+
+    # Same limit the manual entry route applies
+    if quantity > 0 and product.max_stock is not None and quantity > (product.max_stock or 0):
+        return jsonify({'error': 'Quantidade de entrada excede o estoque máximo permitido'}), 400
+
+    # An initial quantity is recorded as an entry move in this same transaction, so the
+    # balance always matches the movement history
     stock = Stock(product_id=product_id, quantity=quantity)
     db.session.add(stock)
+    if quantity > 0:
+        db.session.add(StockMove(
+            stock=stock, quantity_change=quantity, reason='Estoque inicial',
+            move_type='entrada', user_id=user.id,
+        ))
     db.session.commit()
     return jsonify({'id': stock.id, 'product_id': stock.product_id, 'quantity': stock.quantity}), 201
 
