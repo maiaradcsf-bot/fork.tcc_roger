@@ -472,10 +472,10 @@ async function loadProducts() {
       const categoriesText = Array.isArray(p.categories) && p.categories.length ? p.categories.join(', ') : '—';
       const actionButtons = [];
       if (canViewProduct) {
-        actionButtons.push(`<button type="button" class="btn btn-outline-secondary" onclick="visualizarProduto(${p.id})">Visualizar</button>`);
+        actionButtons.push(`<button type="button" class="btn btn-outline-secondary" onclick="visualizarProduto(${Number(p.id)})">Visualizar</button>`);
       }
       if (canRequestProduct) {
-        actionButtons.push(`<button type="button" class="btn btn-primary" onclick="adicionarRequisicao(${p.id})" ${stock <= 0 ? 'disabled' : ''}>Adicionar requisição</button>`);
+        actionButtons.push(`<button type="button" class="btn btn-primary" onclick="adicionarRequisicao(${Number(p.id)})" ${stock <= 0 ? 'disabled' : ''}>Adicionar requisição</button>`);
       }
       if (!actionButtons.length) {
         actionButtons.push('<span class="text-muted">Sem ações</span>');
@@ -490,7 +490,7 @@ async function loadProducts() {
           </td>
           <td>${escapeHtml(categoriesText)}</td>
           <td>${formatPrice(p.price)}</td>
-          <td>${stock}</td>
+          <td>${escapeHtml(stock)}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
               ${actionButtons.join('')}
@@ -671,14 +671,15 @@ window.adicionarRequisicao = async function(productId) {
     const data = await resp.json();
     await fetchOpenCart(token);
     if (window.Swal) {
-      await Swal.fire('Produto adicionado', `${productName} foi adicionado ao carrinho. Quantidade no carrinho: ${data.quantity}`, 'success');
+      // Object form with `text`: the positional shortcut renders its arguments as HTML
+      await Swal.fire({ title: 'Produto adicionado', text: `${productName} foi adicionado ao carrinho. Quantidade no carrinho: ${data.quantity}`, icon: 'success' });
     } else {
       showAlert('success', `${productName} foi adicionado ao carrinho.`);
     }
     await loadSummary();
   } catch (err) {
     if (window.Swal) {
-      Swal.fire('Erro', `Falha ao adicionar requisição: ${err.message}`, 'error');
+      Swal.fire({ title: 'Erro', text: `Falha ao adicionar requisição: ${err.message}`, icon: 'error' });
     } else {
       showAlert('danger', `Falha ao adicionar requisição: ${err.message}`);
     }
@@ -727,7 +728,7 @@ function renderCartSummary(cart) {
           <input
             type="number"
             class="form-control form-control-sm"
-            id="clientCartItemQuantity-${item.id}"
+            id="clientCartItemQuantity-${Number(item.id)}"
             min="1"
             max="${stock}"
             value="${quantity}"
@@ -739,8 +740,8 @@ function renderCartSummary(cart) {
         <td>${formatPrice(subtotal)}</td>
         <td class="text-center">
           <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-outline-primary" onclick="updateClientCartItem(${item.id})" ${stock <= 0 ? 'disabled' : ''}>Salvar</button>
-            <button type="button" class="btn btn-outline-danger" onclick="removeClientCartItem(${item.id})">Remover</button>
+            <button type="button" class="btn btn-outline-primary" onclick="updateClientCartItem(${Number(item.id)})" ${stock <= 0 ? 'disabled' : ''}>Salvar</button>
+            <button type="button" class="btn btn-outline-danger" onclick="removeClientCartItem(${Number(item.id)})">Remover</button>
           </div>
         </td>
       </tr>

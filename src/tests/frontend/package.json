@@ -1,0 +1,8 @@
+{
+  "name": "sesi-frontend-tests",
+  "private": true,
+  "description": "Dependências dos testes de frontend (node --test src/tests/frontend/)",
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}

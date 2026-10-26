@@ -18,6 +18,13 @@
         .replace(/'/g, '&#39;');
     },
 
+    // A value passed as a string argument inside an inline handler, e.g.
+    // onclick="fn(1, ${escapeJsArg(name)})": JSON.stringify makes it a JS string literal and
+    // escapeHtml keeps it inside the attribute (the browser decodes the entities before running it)
+    escapeJsArg(value) {
+      return this.escapeHtml(JSON.stringify(value === null || value === undefined ? '' : String(value)));
+    },
+
     showAlert(type, message, containerId = 'alertContainer') {
       const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
       if (!container) return null;
@@ -53,7 +60,7 @@
 
     renderTablePlaceholder(container, colspan, message = 'Carregando dados...') {
       if (!container) return;
-      container.innerHTML = `<tr><td colspan="${colspan}" class="text-center py-5 text-muted">${message}</td></tr>`;
+      container.innerHTML = `<tr><td colspan="${Number(colspan)}" class="text-center py-5 text-muted">${this.escapeHtml(message)}</td></tr>`;
     },
 
     formatDate(dateString) {

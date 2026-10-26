@@ -26,8 +26,8 @@ services:
       - vol_images:/app/static/uploads
     environment:
       - FLASK_APP=${FLASK_APP}
-      - FLASK_ENV=${FLASK_ENV}
-      - DEBUG=${DEBUG}
+      # Debug mode stays off: it exposes the Werkzeug debugger (code execution) on the public port
+      - FLASK_DEBUG=0
       - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
       - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
       - DB_HOST=${DB_HOST}
@@ -39,7 +39,7 @@ services:
     command: >
       sh -c "pip install --no-cache-dir -r /tmp/requirements.txt &&
              flask db upgrade &&
-             python -m flask run --host=0.0.0.0 --port=5000 --debug"
+             python -m flask run --host=0.0.0.0 --port=5000 --reload"
     depends_on:
       - mysql
 
@@ -62,13 +62,12 @@ services:
     restart: always
     networks:
       - network_tcc
+    # No PMA_USER/PMA_PASSWORD: phpMyAdmin asks for the MySQL login instead of opening already
+    # authenticated. Published on localhost only; set PMA_BIND_ADDRESS to expose it elsewhere.
     environment:
       PMA_HOST: ${PMA_HOST}
-      PMA_USER: ${PMA_USER}
-      PMA_PASSWORD: ${PMA_PASSWORD}
-      PMA_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
-      - "8080:80"
+      - "${PMA_BIND_ADDRESS:-127.0.0.1}:8080:80"
     depends_on:
       - mysql
 

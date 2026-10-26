@@ -106,15 +106,15 @@ async function loadStockMoves(button = null) {
           } else if (move.reverted_at) {
             actionCell = '<span class="text-muted">Revertida</span>';
           } else if (move.order_id) {
-            actionCell = `<span class="text-muted">Pedido #${move.order_id}</span>`;
+            actionCell = `<span class="text-muted">Pedido #${escapeHtml(move.order_id)}</span>`;
           } else if (hasAdminPermission('admin.stock.moves.delete')) {
-            actionCell = `<button type="button" class="btn btn-outline-warning btn-sm" onclick="revertStockMove(${move.id})"><i class="bi bi-arrow-counterclockwise me-1"></i>Voltar ao estoque</button>`;
+            actionCell = `<button type="button" class="btn btn-outline-warning btn-sm" onclick="revertStockMove(${Number(move.id)})"><i class="bi bi-arrow-counterclockwise me-1"></i>Voltar ao estoque</button>`;
           }
           return `
           <tr>
-            <td>${move.product_name || move.product_id || move.stock_id || '—'}</td>
-            <td>${move.quantity_change || '—'}</td>
-            <td>${move.reason || '—'}</td>
+            <td>${escapeHtml(move.product_name || move.product_id || move.stock_id || '—')}</td>
+            <td>${escapeHtml(move.quantity_change || '—')}</td>
+            <td>${escapeHtml(move.reason || '—')}</td>
             <td>${formatDate(move.created_at)}</td>
             <td class="text-center">${actionCell}</td>
           </tr>
@@ -131,7 +131,7 @@ async function loadStockMoves(button = null) {
   } catch (error) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
+        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar movimentações: ${error.message}`);
@@ -146,6 +146,10 @@ function buildAuthHeader() {
 
 function escapeHtml(value) {
   return window.appUtils.escapeHtml(value);
+}
+
+function escapeJsArg(value) {
+  return window.appUtils.escapeJsArg(value);
 }
 
 function hasAdminPermission(permissionName) {
@@ -212,7 +216,8 @@ function createStatusBadge(status) {
   if (ORDER_STATUS_GROUPS.cancelled.includes(normalized)) {
     return '<span class="badge bg-secondary status-badge">Cancelado</span>';
   }
-  return `<span class="badge bg-secondary status-badge">${(status || 'Desconhecido').toString().replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase())}</span>`;
+  const label = (status || 'Desconhecido').toString().replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+  return `<span class="badge bg-secondary status-badge">${escapeHtml(label)}</span>`;
 }
 
 async function fetchJson(path, init = {}) {
@@ -307,6 +312,7 @@ async function loadOrders(button = null) {
 
     ordersTableBody.innerHTML = orders
       .map((order, index) => {
+        const orderId = Number(order.id);
         const statusBadge = createStatusBadge(order.status);
         const createdAt = formatDate(order.created_at || order.createdAt || '');
         const productName = order.product_name || order.product || '—';
@@ -317,41 +323,41 @@ async function loadOrders(button = null) {
         const actionButtons = [];
         if (ORDER_STATUS_GROUPS.pending.includes(normalizedStatus)) {
           if (hasAdminPermission('admin.orders.approve')) {
-            actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${order.id}, 'approve', this)">Aprovar</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-success" onclick="openOrderActionConfirm(${orderId}, 'approve', this)">Aprovar</button>`);
           }
           if (hasAdminPermission('admin.orders.reject')) {
-            actionButtons.push(`<button type="button" class="btn btn-danger" onclick="openOrderActionConfirm(${order.id}, 'reject', this)">Rejeitar</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-danger" onclick="openOrderActionConfirm(${orderId}, 'reject', this)">Rejeitar</button>`);
           }
           if (hasAdminPermission('admin.orders.cancel')) {
-            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${orderId}, 'cancel', this)">Cancelar</button>`);
           }
         }
         if (ORDER_STATUS_GROUPS.approved.includes(normalizedStatus)) {
           if (hasAdminPermission('admin.orders.approve')) {
-            actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${order.id}, 'finish', this)">Retirado</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-primary" onclick="openOrderActionConfirm(${orderId}, 'finish', this)">Retirado</button>`);
           }
           if (hasAdminPermission('admin.orders.cancel')) {
-            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${order.id}, 'cancel', this)">Cancelar</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-outline-danger" onclick="openOrderActionConfirm(${orderId}, 'cancel', this)">Cancelar</button>`);
           }
         }
         if (ORDER_STATUS_GROUPS.finished.includes(normalizedStatus)) {
           if (hasAdminPermission('admin.orders.cancel')) {
-            actionButtons.push(`<button type="button" class="btn btn-outline-warning" onclick="openOrderActionConfirm(${order.id}, 'cancel', this, true)"><i class="bi bi-arrow-counterclockwise me-1"></i>Devolver ao estoque</button>`);
+            actionButtons.push(`<button type="button" class="btn btn-outline-warning" onclick="openOrderActionConfirm(${orderId}, 'cancel', this, true)"><i class="bi bi-arrow-counterclockwise me-1"></i>Devolver ao estoque</button>`);
           }
         }
 
         return `
           <tr>
             <th scope="row">${index + 1}</th>
-            <td>${clientName}</td>
-            <td>${order.product_summary || '—'}</td>
-            <td>${order.quantity_total ?? quantity}</td>
+            <td>${escapeHtml(clientName)}</td>
+            <td>${escapeHtml(order.product_summary || '—')}</td>
+            <td>${escapeHtml(order.quantity_total ?? quantity)}</td>
             <td>R$ ${Number(order.total || 0).toFixed(2)}</td>
             <td>${statusBadge}</td>
             <td>${createdAt}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-info" onclick="openOrderDetailModal(${order.id})">Detalhes</button>
+                <button type="button" class="btn btn-info" onclick="openOrderDetailModal(${orderId})">Detalhes</button>
                 ${actionButtons.join('')}
               </div>
             </td>
@@ -362,7 +368,7 @@ async function loadOrders(button = null) {
   } catch (error) {
     ordersTableBody.innerHTML = `
       <tr>
-        <td colspan="8" class="text-center py-5 text-danger">Falha ao carregar pedidos: ${error.message}</td>
+        <td colspan="8" class="text-center py-5 text-danger">Falha ao carregar pedidos: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar pedidos: ${error.message}`);
@@ -393,8 +399,8 @@ function renderLowStockList(items) {
           ${items.map((p) => `
             <tr>
               <td class="py-2">${escapeHtml(p.name || p.product || '—')}</td>
-              <td class="py-2">${p.stock ?? '—'}</td>
-              <td class="py-2">${p.min_stock ?? '—'}</td>
+              <td class="py-2">${escapeHtml(p.stock ?? '—')}</td>
+              <td class="py-2">${escapeHtml(p.min_stock ?? '—')}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -517,14 +523,14 @@ async function openOrderDetailModal(orderId) {
       itemsBody.innerHTML = order.items
         .map((item) => {
           const productName = item.product || item.product_name || '—';
-          const img = item.image_url ? `<img src="${item.image_url}" alt="${productName}" style="height: 50px; width: auto; border-radius: 4px; margin-right: 10px; vertical-align: middle;">` : '';
+          const img = item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(productName)}" style="height: 50px; width: auto; border-radius: 4px; margin-right: 10px; vertical-align: middle;">` : '';
           const barcode = item.barcode || item.product_barcode || '—';
           return `
             <tr>
-              <td>${img}<span style="vertical-align: middle;">${productName}</span></td>
-              <td>${item.description || '—'}</td>
-              <td>${barcode}</td>
-              <td>${item.quantity ?? '—'}</td>
+              <td>${img}<span style="vertical-align: middle;">${escapeHtml(productName)}</span></td>
+              <td>${escapeHtml(item.description || '—')}</td>
+              <td>${escapeHtml(barcode)}</td>
+              <td>${escapeHtml(item.quantity ?? '—')}</td>
               <td>R$ ${Number(item.unit_price || 0).toFixed(2)}</td>
               <td>R$ ${Number((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)}</td>
             </tr>
@@ -567,14 +573,14 @@ async function loadCategories(button = null) {
         return `
         <tr>
           <th scope="row">${index + 1}</th>
-          <td>${category.name || '—'}</td>
+          <td>${escapeHtml(category.name || '—')}</td>
           <td>${category.parent_id ? 'Subcategoria' : 'Categoria'}</td>
-          <td>${category.description || '—'}</td>
-          <td>${category.parent_id ? parentName : ''}</td>
+          <td>${escapeHtml(category.description || '—')}</td>
+          <td>${category.parent_id ? escapeHtml(parentName) : ''}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              ${hasAdminPermission('admin.categories.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${category.id})">Editar</button>` : ''}
-              ${hasAdminPermission('admin.categories.delete') ? `<button type="button" class="btn btn-outline-danger" onclick='deleteCategory(${category.id}, ${JSON.stringify(category.name)})'>Excluir</button>` : ''}
+              ${hasAdminPermission('admin.categories.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openCategoryModal('edit', ${Number(category.id)})">Editar</button>` : ''}
+              ${hasAdminPermission('admin.categories.delete') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteCategory(${Number(category.id)}, ${escapeJsArg(category.name)})">Excluir</button>` : ''}
             </div>
           </td>
         </tr>
@@ -584,7 +590,7 @@ async function loadCategories(button = null) {
   } catch (error) {
     categoriesTableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar categorias: ${error.message}</td>
+        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar categorias: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar categorias: ${error.message}`);
@@ -616,22 +622,22 @@ async function loadProducts(button = null) {
               ? product.categories.map((cat) => cat.path || cat.name).join(', ')
               : '—';
             return `
-              <tr data-product-id="${product.id}">
+              <tr data-product-id="${Number(product.id)}">
                 <th scope="row">${index + 1}</th>
                 <td>
-                  ${product.photo_path ? `<img src="${product.photo_path}" alt="${product.name}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
-                  ${product.name || '—'}
+                  ${product.photo_path ? `<img src="${escapeHtml(product.photo_path)}" alt="${escapeHtml(product.name)}" style="height: 40px; width: auto; border-radius: 4px; margin-right: 8px;">` : ''}
+                  ${escapeHtml(product.name || '—')}
                 </td>
                 <td>${escapeHtml(product.barcode || '—')}</td>
                 <td>${escapeHtml(categoriesText)}</td>
                 <td>R$ ${Number(product.price || 0).toFixed(2)}</td>
-                <td>${product.stock ?? '—'}</td>
-                <td>${product.min_stock ?? '—'}</td>
-                <td>${product.max_stock ?? '—'}</td>
+                <td>${escapeHtml(product.stock ?? '—')}</td>
+                <td>${escapeHtml(product.min_stock ?? '—')}</td>
+                <td>${escapeHtml(product.max_stock ?? '—')}</td>
                 <td class="text-center">
                   <div class="btn-group btn-group-sm" role="group">
-                    ${hasAdminPermission('admin.products.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${product.id})">Editar</button>` : ''}
-                    ${hasAdminPermission('admin.products.delete') ? `<button type="button" class="btn btn-outline-danger" onclick='deleteProduct(${product.id}, ${JSON.stringify(product.name)})'>Excluir</button>` : ''}
+                    ${hasAdminPermission('admin.products.edit') ? `<button type="button" class="btn btn-outline-secondary" onclick="openProductModal('edit', ${Number(product.id)})">Editar</button>` : ''}
+                    ${hasAdminPermission('admin.products.delete') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteProduct(${Number(product.id)}, ${escapeJsArg(product.name)})">Excluir</button>` : ''}
                   </div>
                 </td>
               </tr>
@@ -646,14 +652,14 @@ async function loadProducts(button = null) {
     if (productsTableBody) {
       productsTableBody.innerHTML = `
         <tr>
-          <td colspan="9" class="text-center py-5 text-danger">Falha ao carregar produtos: ${error.message}</td>
+          <td colspan="9" class="text-center py-5 text-danger">Falha ao carregar produtos: ${escapeHtml(error.message)}</td>
         </tr>
       `;
     }
     if (stockMovesTableBody) {
       stockMovesTableBody.innerHTML = `
         <tr>
-          <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${error.message}</td>
+          <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar movimentações: ${escapeHtml(error.message)}</td>
         </tr>
       `;
     }
@@ -773,14 +779,14 @@ async function loadClients(button = null) {
       .map((client, index) => `
         <tr>
           <th scope="row">${index + 1}</th>
-          <td>${client.name || '—'}</td>
-          <td>${client.email || '—'}</td>
-          <td>${client.phone || '—'}</td>
+          <td>${escapeHtml(client.name || '—')}</td>
+          <td>${escapeHtml(client.email || '—')}</td>
+          <td>${escapeHtml(client.phone || '—')}</td>
           <td>${client.active ? '<span class="badge bg-success">Ativo</span>' : '<span class="badge bg-secondary">Inativo</span>'}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              <button type="button" class="btn btn-outline-primary btn-sm btn-detail-client" data-client-id="${client.id}">Ver detalhes</button>
-              <button type="button" class="btn btn-outline-${client.active ? 'danger' : 'success'} btn-sm" onclick="openClientDeactivateModal(${client.id}, '${(client.name || 'Cliente').replace(/'/g, "\'")}', ${client.active})">${client.active ? 'Inativar' : 'Reativar'}</button>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-detail-client" data-client-id="${Number(client.id)}">Ver detalhes</button>
+              <button type="button" class="btn btn-outline-${client.active ? 'danger' : 'success'} btn-sm" onclick="openClientDeactivateModal(${Number(client.id)}, ${escapeJsArg(client.name || 'Cliente')}, ${client.active ? 'true' : 'false'})">${client.active ? 'Inativar' : 'Reativar'}</button>
             </div>
           </td>
         </tr>
@@ -789,7 +795,7 @@ async function loadClients(button = null) {
   } catch (error) {
     clientsTableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar clientes: ${error.message}</td>
+        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar clientes: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar clientes: ${error.message}`);
@@ -810,7 +816,7 @@ function renderClientOrdersList(orders) {
       <div class="border rounded-3 p-3 mb-3">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-2">
           <div>
-            <strong>Pedido #${order.id}</strong>
+            <strong>Pedido #${escapeHtml(order.id)}</strong>
             <div class="text-muted small">${order.created_at ? new Date(order.created_at).toLocaleString() : 'Data indisponível'}</div>
           </div>
           <div class="text-end">
@@ -819,8 +825,8 @@ function renderClientOrdersList(orders) {
         </div>
         <div class="mb-3">
           <span class="badge bg-light text-dark me-2">Total: R$ ${Number(order.total || 0).toFixed(2)}</span>
-          <span class="badge bg-light text-dark me-2">Itens: ${order.product_lines || 0}</span>
-          <span class="badge bg-light text-dark">Quantidade: ${order.quantity || 0}</span>
+          <span class="badge bg-light text-dark me-2">Itens: ${escapeHtml(order.product_lines || 0)}</span>
+          <span class="badge bg-light text-dark">Quantidade: ${escapeHtml(order.quantity || 0)}</span>
         </div>
         <div class="table-responsive">
           <table class="table table-sm mb-0">
@@ -837,8 +843,8 @@ function renderClientOrdersList(orders) {
                 .map(
                   (item) => `
                     <tr>
-                      <td>${item.product_name || '—'}</td>
-                      <td class="text-end">${item.quantity ?? 0}</td>
+                      <td>${escapeHtml(item.product_name || '—')}</td>
+                      <td class="text-end">${escapeHtml(item.quantity ?? 0)}</td>
                       <td class="text-end">R$ ${Number(item.unit_price || 0).toFixed(2)}</td>
                       <td class="text-end">R$ ${Number((item.unit_price || 0) * (item.quantity || 0)).toFixed(2)}</td>
                     </tr>
@@ -885,8 +891,8 @@ async function loadSettingsRulesOptions(selectedIds = []) {
       settingsUserRulesSelect.innerHTML = rules.length
         ? rules.map((rule) => `
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="${rule.id}" id="settingsUserRuleOption${rule.id}" ${selectedIds.includes(rule.id) ? 'checked' : ''}>
-              <label class="form-check-label" for="settingsUserRuleOption${rule.id}">${escapeHtml(rule.name)}</label>
+              <input class="form-check-input" type="checkbox" value="${Number(rule.id)}" id="settingsUserRuleOption${Number(rule.id)}" ${selectedIds.includes(rule.id) ? 'checked' : ''}>
+              <label class="form-check-label" for="settingsUserRuleOption${Number(rule.id)}">${escapeHtml(rule.name)}</label>
             </div>
           `).join('')
         : '<p class="text-muted mb-0">Nenhum perfil cadastrado.</p>';
@@ -897,8 +903,8 @@ async function loadSettingsRulesOptions(selectedIds = []) {
       settingsProfilePermissionsSelect.innerHTML = permissions.length
         ? permissions.map((permission) => `
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="${permission.id}" id="settingsProfilePermissionOption${permission.id}" ${selectedIds.includes(permission.id) ? 'checked' : ''}>
-              <label class="form-check-label" for="settingsProfilePermissionOption${permission.id}">${escapeHtml(permission.name)}</label>
+              <input class="form-check-input" type="checkbox" value="${Number(permission.id)}" id="settingsProfilePermissionOption${Number(permission.id)}" ${selectedIds.includes(permission.id) ? 'checked' : ''}>
+              <label class="form-check-label" for="settingsProfilePermissionOption${Number(permission.id)}">${escapeHtml(permission.name)}</label>
             </div>
           `).join('')
         : '<p class="text-muted mb-0">Nenhuma permissão cadastrada.</p>';
@@ -932,14 +938,14 @@ async function loadSettingsUsers(button = null) {
         return `
           <tr>
             <th scope="row">${index + 1}</th>
-            <td>${user.username || '—'}</td>
-            <td>${user.email || '—'}</td>
-            <td>${ruleNames}</td>
+            <td>${escapeHtml(user.username || '—')}</td>
+            <td>${escapeHtml(user.email || '—')}</td>
+            <td>${escapeHtml(ruleNames)}</td>
             <td>${formatDate(user.created_at)}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
-                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsUserModal('edit', ${user.id})">Editar</button>` : ''}
-                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsUser(${user.id})">Excluir</button>` : ''}
+                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsUserModal('edit', ${Number(user.id)})">Editar</button>` : ''}
+                ${hasAdminPermission('admin.settings.users.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsUser(${Number(user.id)})">Excluir</button>` : ''}
               </div>
             </td>
           </tr>
@@ -949,7 +955,7 @@ async function loadSettingsUsers(button = null) {
   } catch (error) {
     settingsUsersTableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar usuários: ${error.message}</td>
+        <td colspan="6" class="text-center py-5 text-danger">Falha ao carregar usuários: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar usuários: ${error.message}`);
@@ -980,12 +986,12 @@ async function loadSettingsPermissions(button = null) {
       .map((permission, index) => `
         <tr>
           <th scope="row">${index + 1}</th>
-          <td>${permission.name || '—'}</td>
-          <td>${permission.description || '—'}</td>
+          <td>${escapeHtml(permission.name || '—')}</td>
+          <td>${escapeHtml(permission.description || '—')}</td>
           <td class="text-center">
             <div class="btn-group btn-group-sm" role="group">
-              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsPermissionModal('edit', ${permission.id})">Editar</button>` : ''}
-              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsPermission(${permission.id})">Excluir</button>` : ''}
+              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsPermissionModal('edit', ${Number(permission.id)})">Editar</button>` : ''}
+              ${hasAdminPermission('admin.settings.permissions.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsPermission(${Number(permission.id)})">Excluir</button>` : ''}
             </div>
           </td>
         </tr>
@@ -994,7 +1000,7 @@ async function loadSettingsPermissions(button = null) {
   } catch (error) {
     settingsPermissionsTableBody.innerHTML = `
       <tr>
-        <td colspan="4" class="text-center py-5 text-danger">Falha ao carregar permissões: ${error.message}</td>
+        <td colspan="4" class="text-center py-5 text-danger">Falha ao carregar permissões: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar permissões: ${error.message}`);
@@ -1027,13 +1033,13 @@ async function loadSettingsProfiles(button = null) {
         return `
           <tr>
             <th scope="row">${index + 1}</th>
-            <td>${profile.name || '—'}</td>
-            <td>${profile.description || '—'}</td>
-            <td>${permissionNames}</td>
+            <td>${escapeHtml(profile.name || '—')}</td>
+            <td>${escapeHtml(profile.description || '—')}</td>
+            <td>${escapeHtml(permissionNames)}</td>
             <td class="text-center">
               <div class="btn-group btn-group-sm" role="group">
-                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsProfileModal('edit', ${profile.id})">Editar</button>` : ''}
-                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsProfile(${profile.id})">Excluir</button>` : ''}
+                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-secondary" onclick="openSettingsProfileModal('edit', ${Number(profile.id)})">Editar</button>` : ''}
+                ${hasAdminPermission('admin.settings.profiles.manage') ? `<button type="button" class="btn btn-outline-danger" onclick="deleteSettingsProfile(${Number(profile.id)})">Excluir</button>` : ''}
               </div>
             </td>
           </tr>
@@ -1043,7 +1049,7 @@ async function loadSettingsProfiles(button = null) {
   } catch (error) {
     settingsProfilesTableBody.innerHTML = `
       <tr>
-        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar perfis: ${error.message}</td>
+        <td colspan="5" class="text-center py-5 text-danger">Falha ao carregar perfis: ${escapeHtml(error.message)}</td>
       </tr>
     `;
     showAlert('danger', `Erro ao carregar perfis: ${error.message}`);
@@ -1545,7 +1551,7 @@ async function openProductModal(mode, productId = null) {
     if (stockField && stockField.parentElement) stockField.parentElement.style.display = 'none';
     productPhotoURL = product.photo_path || '';
     if (product.photo_path) {
-      photoPreview.innerHTML = `<img src="${product.photo_path}" alt="Prévia" style="height: 80px; width: auto; border-radius: 4px;">`;
+      photoPreview.innerHTML = `<img src="${escapeHtml(product.photo_path)}" alt="Prévia" style="height: 80px; width: auto; border-radius: 4px;">`;
     }
     await loadProductCategoryOptions(Array.isArray(product.category_ids) ? product.category_ids : (Array.isArray(product.categories) ? product.categories.map((cat) => cat.id) : []));
   } else {
@@ -1579,7 +1585,7 @@ document.addEventListener('change', async (e) => {
     // Mostrar preview local
     const reader = new FileReader();
     reader.onload = (event) => {
-      preview.innerHTML = `<img src="${event.target.result}" alt="Prévia" style="height: 80px; width: auto; border-radius: 4px;">`;
+      preview.innerHTML = `<img src="${escapeHtml(event.target.result)}" alt="Prévia" style="height: 80px; width: auto; border-radius: 4px;">`;
     };
     reader.readAsDataURL(file);
     
@@ -1934,10 +1940,10 @@ function renderImportPreview() {
 
   const { summary, rows } = importState.previewResult;
   summaryContainer.innerHTML = `
-    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold">${summary.total}</div><div class="text-muted small">Linhas no arquivo</div></div></div>
-    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-success">${summary.to_create}</div><div class="text-muted small">Novos produtos</div></div></div>
-    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-info">${summary.to_update}</div><div class="text-muted small">Serão atualizados</div></div></div>
-    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-danger">${summary.invalid}</div><div class="text-muted small">Inválidos (ignorados)</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold">${escapeHtml(summary.total)}</div><div class="text-muted small">Linhas no arquivo</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-success">${escapeHtml(summary.to_create)}</div><div class="text-muted small">Novos produtos</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-info">${escapeHtml(summary.to_update)}</div><div class="text-muted small">Serão atualizados</div></div></div>
+    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-semibold text-danger">${escapeHtml(summary.invalid)}</div><div class="text-muted small">Inválidos (ignorados)</div></div></div>
   `;
 
   tbody.innerHTML = rows.map((row) => {
@@ -1950,7 +1956,7 @@ function renderImportPreview() {
         diffs.push(`Preço: R$ ${Number(row.current.price ?? 0).toFixed(2)} &rarr; R$ ${Number(row.data.price ?? 0).toFixed(2)}`);
       }
       if (row.data.stock_quantity !== null && row.data.stock_quantity !== undefined && row.current.stock_quantity !== row.data.stock_quantity) {
-        diffs.push(`Estoque: ${row.current.stock_quantity ?? 0} &rarr; ${row.data.stock_quantity}`);
+        diffs.push(`Estoque: ${escapeHtml(row.current.stock_quantity ?? 0)} &rarr; ${escapeHtml(row.data.stock_quantity)}`);
       }
       details = diffs.length ? diffs.join('<br>') : '<span class="text-muted">Sem alterações relevantes</span>';
     } else {
@@ -1958,12 +1964,12 @@ function renderImportPreview() {
     }
     return `
       <tr>
-        <td>${row.row}</td>
+        <td>${escapeHtml(row.row)}</td>
         <td>${importActionBadge(row.action)}</td>
         <td>${escapeHtml(row.data.name || '—')}</td>
         <td>${escapeHtml(row.data.barcode || '—')}</td>
         <td>${row.data.price !== null && row.data.price !== undefined ? `R$ ${Number(row.data.price).toFixed(2)}` : '—'}</td>
-        <td>${row.data.stock_quantity ?? '—'}</td>
+        <td>${escapeHtml(row.data.stock_quantity ?? '—')}</td>
         <td>${details}</td>
       </tr>
     `;
@@ -2010,8 +2016,8 @@ async function commitImport() {
     const resultMessage = $id('importResultMessage');
     if (resultMessage) {
       resultMessage.innerHTML = `
-        <strong>${result.created}</strong> produto(s) criado(s) e <strong>${result.updated}</strong> atualizado(s).
-        ${result.skipped ? `<br><span class="text-warning">${result.skipped} linha(s) ignorada(s) por erro de validação.</span>` : ''}
+        <strong>${escapeHtml(result.created)}</strong> produto(s) criado(s) e <strong>${escapeHtml(result.updated)}</strong> atualizado(s).
+        ${result.skipped ? `<br><span class="text-warning">${escapeHtml(result.skipped)} linha(s) ignorada(s) por erro de validação.</span>` : ''}
       `;
     }
     importState.completed = true;
@@ -2081,7 +2087,7 @@ function openClientDeactivateModal(clientId, clientName, clientActive) {
   const badgeText = clientActive ? 'inativo' : 'ativo';
 
   clientNameElement.textContent = clientName;
-  clientMessage.innerHTML = `Deseja ${newStatusText} o cliente <strong>${clientName}</strong>?`;
+  clientMessage.innerHTML = `Deseja ${newStatusText} o cliente <strong>${escapeHtml(clientName)}</strong>?`;
   const nextActiveState = !clientActive;
   confirmButton.textContent = clientActive ? 'Confirmar inativação' : 'Confirmar reativação';
   confirmButton.className = clientActive ? 'btn btn-danger' : 'btn btn-success';

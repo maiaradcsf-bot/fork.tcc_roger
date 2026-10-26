@@ -97,10 +97,10 @@ async function loadClientOrders(button = null) {
       const normalizedStatus = (order.status || '').toString().toLowerCase();
       const actions = [];
       if (hasClientPermission('clients.orders.view')) {
-        actions.push(`<button type="button" class="btn btn-info btn-sm" onclick="openClientOrderDetailModal(${order.id})">Detalhes</button>`);
+        actions.push(`<button type="button" class="btn btn-info btn-sm" onclick="openClientOrderDetailModal(${Number(order.id)})">Detalhes</button>`);
       }
       if (['pending', 'initial', 'inicial', 'pendent', 'pendente'].includes(normalizedStatus) && hasClientPermission('clients.orders.cancel')) {
-        actions.push(`<button type="button" class="btn btn-outline-danger btn-sm" onclick="handleClientOrderAction(${order.id}, 'cancel', this)">Cancelar</button>`);
+        actions.push(`<button type="button" class="btn btn-outline-danger btn-sm" onclick="handleClientOrderAction(${Number(order.id)}, 'cancel', this)">Cancelar</button>`);
       }
       if (!actions.length) {
         actions.push('<span class="text-muted">Sem ações</span>');
@@ -110,7 +110,7 @@ async function loadClientOrders(button = null) {
       <tr>
         <th scope="row">${index + 1}</th>
         <td>${summarizeOrderProducts(order)}</td>
-        <td>${summarizeOrderQuantity(order)}</td>
+        <td>${escapeHtml(summarizeOrderQuantity(order))}</td>
         <td>${formatPrice(order.total)}</td>
         <td>${createClientOrderStatusBadge(order.status)}</td>
         <td>${formatOrderDate(order.created_at)}</td>
@@ -212,7 +212,7 @@ async function openClientOrderDetailModal(orderId) {
               <td>${img}<span style="vertical-align: middle;">${escapeHtml(productName)}</span></td>
               <td>${escapeHtml(item.description || '—')}</td>
               <td>${escapeHtml(barcode)}</td>
-              <td>${item.quantity ?? '—'}</td>
+              <td>${escapeHtml(item.quantity ?? '—')}</td>
               <td>${formatPrice(item.unit_price)}</td>
               <td>${formatPrice((item.unit_price || 0) * (item.quantity || 0))}</td>
             </tr>

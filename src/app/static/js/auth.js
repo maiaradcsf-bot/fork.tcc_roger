@@ -8,10 +8,15 @@ function showAuthAlert(type, message) {
   const alertElement = document.createElement('div');
   alertElement.className = `alert alert-${type} alert-dismissible fade show`;
   alertElement.role = 'alert';
-  alertElement.innerHTML = `
-    <div>${message}</div>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  `;
+  // The message can come from the API, so it is inserted as text, never as HTML
+  const messageElement = document.createElement('div');
+  messageElement.textContent = message;
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'btn-close';
+  closeButton.dataset.bsDismiss = 'alert';
+  closeButton.setAttribute('aria-label', 'Close');
+  alertElement.append(messageElement, closeButton);
 
   authAlertContainer.innerHTML = '';
   authAlertContainer.appendChild(alertElement);
