@@ -1,131 +1,17 @@
 {
   "info": {
-    "name": "SESI E-commerce API",
-    "description": "Collection of API endpoints for SESI e-commerce demo, including client auth, admin management, products, categories, carts, orders, and stock movements.",
+    "_postman_id": "6136b7a0-fe63-53df-9cbd-23f0e34ad72f",
+    "name": "Almoxarifado SESI API",
+    "description": "API do Almoxarifado SESI (Flask), usada pelo frontend web e pelo app mobile.\n\nComo usar:\n1. Importe também o environment \"Almoxarifado SESI - Local\" e selecione-o.\n2. Preencha admin_password/client_password no environment.\n3. Rode \"Autenticação › Login unificado\" (ou os logins específicos): o token é salvo automaticamente.\n4. As rotas de criação guardam os ids (product_id, cart_id, order_id...) para as próximas requisições.\n\nRotas marcadas com ⚠️ apagam dados em massa.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:80/api"
-    },
-    {
-      "key": "client_email",
-      "value": "client@example.com"
-    },
-    {
-      "key": "client_password",
-      "value": "clientpass"
-    },
-    {
-      "key": "admin_username",
-      "value": "admin"
-    },
-    {
-      "key": "admin_password",
-      "value": "adminpass"
-    },
-    {
-      "key": "client_token",
-      "value": ""
-    },
-    {
-      "key": "admin_token",
-      "value": ""
-    },
-    {
-      "key": "product_id",
-      "value": "1"
-    },
-    {
-      "key": "category_id",
-      "value": "1"
-    },
-    {
-      "key": "stock_id",
-      "value": "1"
-    }
-  ],
   "item": [
     {
-      "name": "Client Auth",
+      "name": "Autenticação",
+      "description": "Login, cadastro e logout. Os logins guardam o token em admin_token/client_token automaticamente.",
       "item": [
         {
-          "name": "Client Register",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Client Example\",\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\",\n  \"phone\": \"(11) 99999-9999\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/client/register",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "register"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Client Login",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/client/login",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "login"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Client Logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/logout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "logout"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Unified Login",
+          "name": "Login unificado (admin ou cliente)",
           "request": {
             "method": "POST",
             "header": [
@@ -143,19 +29,35 @@
                 "login"
               ]
             },
+            "description": "Aceita e-mail de cliente ou de usuário admin. Responde {token, role} e guarda o token na variável correspondente.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}"
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
             }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Admin Auth",
-      "item": [
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { const d = pm.response.json(); const key = d.role === 'admin' ? 'admin_token' : 'client_token'; pm.environment.set(key, d.token); pm.collectionVariables.set(key, d.token); }"
+                ]
+              }
+            }
+          ]
+        },
         {
-          "name": "Admin Login",
+          "name": "Login admin (usuário)",
           "request": {
             "method": "POST",
             "header": [
@@ -164,10 +66,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
-            },
             "url": {
               "raw": "{{base_url}}/admin/login",
               "host": [
@@ -177,19 +75,39 @@
                 "admin",
                 "login"
               ]
+            },
+            "description": "Login pelo nome de usuário do admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
             }
-          }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const v = pm.response.json().token; if (v !== undefined && v !== null) { pm.environment.set('admin_token', String(v)); pm.collectionVariables.set('admin_token', String(v)); } }"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Admin Logout",
+          "name": "Logout admin",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{base_url}}/admin/logout",
               "host": [
@@ -199,612 +117,2346 @@
                 "admin",
                 "logout"
               ]
+            },
+            "description": "Invalida o token do admin.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
             }
-          }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.environment.set('admin_token', ''); pm.collectionVariables.set('admin_token', ''); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastro de cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/client/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "client",
+                "register"
+              ]
+            },
+            "description": "Cria um cliente e já devolve {token, id}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Teste\",\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\",\n  \"phone\": \"(11) 90000-0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const v = pm.response.json().token; if (v !== undefined && v !== null) { pm.environment.set('client_token', String(v)); pm.collectionVariables.set('client_token', String(v)); } }",
+                  "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('client_id', String(v)); pm.collectionVariables.set('client_id', String(v)); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/client/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "client",
+                "login"
+              ]
+            },
+            "description": "Login do cliente por e-mail.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) { const v = pm.response.json().token; if (v !== undefined && v !== null) { pm.environment.set('client_token', String(v)); pm.collectionVariables.set('client_token', String(v)); } }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout cliente",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/client/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "client",
+                "logout"
+              ]
+            },
+            "description": "Invalida o token do cliente.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{client_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) { pm.environment.set('client_token', ''); pm.collectionVariables.set('client_token', ''); }"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Client Endpoints",
+      "name": "Admin",
+      "description": "Rotas administrativas (Bearer {{admin_token}}). Cada rota exige a permissão indicada na descrição.",
       "item": [
         {
-          "name": "Get Profile",
+          "name": "Meu perfil e permissões",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
+            "header": [],
             "url": {
-              "raw": "{{base_url}}/client/profile",
+              "raw": "{{base_url}}/admin/me",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "client",
-                "profile"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Profile",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"(11) 98888-8888\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/client/profile",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "profile"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Carts",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/carts",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "carts"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Cart",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/carts",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "carts"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Add Item to Cart",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 1\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/client/carts/{{cart_id}}/items",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "carts",
-                "{{cart_id}}",
-                "items"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Checkout Cart",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/carts/{{cart_id}}/checkout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "carts",
-                "{{cart_id}}",
-                "checkout"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Orders",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/orders",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "orders"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Product",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/products/{{product_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "products",
-                "{{product_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Order",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{client_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/client/orders",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "client",
-                "orders"
+                "admin",
+                "me"
               ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 1\n    }\n  ]\n}"
+            "description": "Dados do usuário logado, perfis e lista de permissões."
+          },
+          "response": []
+        },
+        {
+          "name": "Produtos",
+          "description": "Cadastro de produtos.",
+          "item": [
+            {
+              "name": "Listar produtos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products"
+                  ]
+                },
+                "description": "Permissão: admin.products.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar produto",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/products",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products"
+                  ]
+                },
+                "description": "Permissão: admin.products.create. Guarda product_id. O estoque é criado em \"Estoque › Criar estoque\".",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Caneta Teste\",\n  \"description\": \"Produto criado pelo Postman\",\n  \"price\": 2.5,\n  \"barcode\": \"7890000000001\",\n  \"min_stock\": 5,\n  \"max_stock\": 100,\n  \"photo_path\": null,\n  \"category_ids\": [\n    \"{{category_id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('product_id', String(v)); pm.collectionVariables.set('product_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Detalhar produto",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/{{product_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "{{product_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.products.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Atualizar produto",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/{{product_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "{{product_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.products.edit. Envie só os campos que mudam.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Caneta Teste (editada)\",\n  \"price\": 2.9,\n  \"min_stock\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Upload de imagem do produto",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/upload",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "upload"
+                  ]
+                },
+                "description": "Permissão: admin.products.create. Campo \"file\" (png, jpg, gif, webp). Responde {url} para usar em photo_path.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Selecione o arquivo"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Excluir produto",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/{{product_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "{{product_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.products.delete. Exclusão lógica (o histórico é mantido)."
+              },
+              "response": []
+            },
+            {
+              "name": "⚠️ Excluir todos os produtos",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/delete-all",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "delete-all"
+                  ]
+                },
+                "description": "Permissão: admin.products.delete. Exclusão lógica de TODOS os produtos."
+              },
+              "response": []
             }
-          }
+          ]
+        },
+        {
+          "name": "Importação de produtos (CSV)",
+          "description": "Fluxo: upload → preview → commit (ou cancelar).",
+          "item": [
+            {
+              "name": "1. Enviar CSV",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/import/upload",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "import",
+                    "upload"
+                  ]
+                },
+                "description": "Permissão: admin.products.import. Campo \"file\" (.csv). Responde import_id, headers, sample_rows e fields; guarda import_id.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Selecione o arquivo"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().import_id; if (v !== undefined && v !== null) { pm.environment.set('import_id', String(v)); pm.collectionVariables.set('import_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Prévia do mapeamento",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/import/preview",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "import",
+                    "preview"
+                  ]
+                },
+                "description": "mapping: campo do sistema → nome da coluna do CSV (name e price obrigatórios).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"import_id\": \"{{import_id}}\",\n  \"mapping\": {\n    \"name\": \"Nome\",\n    \"price\": \"Preço\",\n    \"barcode\": \"Código\",\n    \"description\": null,\n    \"min_stock\": null,\n    \"max_stock\": null,\n    \"stock_quantity\": \"Quantidade\",\n    \"category\": \"Categoria\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. Confirmar importação",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/import/commit",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "import",
+                    "commit"
+                  ]
+                },
+                "description": "Mesmo corpo da prévia; cria/atualiza os produtos.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"import_id\": \"{{import_id}}\",\n  \"mapping\": {\n    \"name\": \"Nome\",\n    \"price\": \"Preço\",\n    \"barcode\": \"Código\",\n    \"stock_quantity\": \"Quantidade\",\n    \"category\": \"Categoria\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancelar importação",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/products/import/{{import_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "products",
+                    "import",
+                    "{{import_id}}"
+                  ]
+                },
+                "description": "Remove o arquivo temporário da importação."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Categorias",
+          "description": "Categorias e subcategorias (parent_id).",
+          "item": [
+            {
+              "name": "Listar categorias",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "categories"
+                  ]
+                },
+                "description": "Permissão: admin.categories.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar categoria",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "categories"
+                  ]
+                },
+                "description": "Permissão: admin.categories.create. parent_id opcional (subcategoria). Guarda category_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Categoria Teste\",\n  \"description\": \"Criada pelo Postman\",\n  \"parent_id\": null\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('category_id', String(v)); pm.collectionVariables.set('category_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Atualizar categoria",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories/{{category_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "categories",
+                    "{{category_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.categories.edit",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Categoria Teste (editada)\",\n  \"description\": \"Atualizada pelo Postman\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Excluir categoria",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/categories/{{category_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "categories",
+                    "{{category_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.categories.delete"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Estoque",
+          "description": "Saldo de estoque por produto.",
+          "item": [
+            {
+              "name": "Listar estoque",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar estoque do produto",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.create. Quantidade inicial > 0 registra uma entrada. Guarda stock_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product_id\": \"{{product_id}}\",\n  \"quantity\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('stock_id', String(v)); pm.collectionVariables.set('stock_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "⚠️ Excluir todo o estoque",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.delete. Apaga TODOS os saldos e movimentações."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Movimentações de estoque",
+          "description": "Entradas (quantity_change > 0), saídas (< 0) e estornos.",
+          "item": [
+            {
+              "name": "Listar movimentações",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock/moves",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock",
+                    "moves"
+                  ],
+                  "query": [
+                    {
+                      "key": "start_date",
+                      "value": "2026-01-01",
+                      "disabled": true,
+                      "description": "Data inicial"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2026-12-31",
+                      "disabled": true,
+                      "description": "Data final"
+                    },
+                    {
+                      "key": "product_id",
+                      "value": "{{product_id}}",
+                      "disabled": true,
+                      "description": "Produto"
+                    }
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.list. Filtros opcionais por data (AAAA-MM-DD) e produto."
+              },
+              "response": []
+            },
+            {
+              "name": "Registrar entrada",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock/moves",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock",
+                    "moves"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.create. Informe stock_id ou product_id. Guarda move_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product_id\": \"{{product_id}}\",\n  \"quantity_change\": 5,\n  \"reason\": \"Reposição\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('move_id', String(v)); pm.collectionVariables.set('move_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Registrar saída",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock/moves",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock",
+                    "moves"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.create. quantity_change negativo.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product_id\": \"{{product_id}}\",\n  \"quantity_change\": -2,\n  \"reason\": \"Uso interno\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('move_id', String(v)); pm.collectionVariables.set('move_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Estornar movimentação",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/stock/moves/{{move_id}}/revert",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stock",
+                    "moves",
+                    "{{move_id}}",
+                    "revert"
+                  ]
+                },
+                "description": "Permissão: admin.stock.moves.delete. Cria a movimentação inversa (não vale para movimentações de pedidos).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Lançamento incorreto\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Solicitações (pedidos)",
+          "description": "Fluxo: pending → approve/reject → finish (retirada) ou cancel.",
+          "item": [
+            {
+              "name": "Listar solicitações",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders"
+                  ]
+                },
+                "description": "Permissão: admin.orders.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Detalhar solicitação",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders/{{order_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders",
+                    "{{order_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.orders.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Aprovar",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders/{{order_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders",
+                    "{{order_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: admin.orders.approve",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Rejeitar",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders/{{order_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders",
+                    "{{order_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: admin.orders.reject",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Marcar como retirado",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders/{{order_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders",
+                    "{{order_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: admin.orders.approve. Baixa o estoque. Sem saldo suficiente responde 409 (code insufficient_stock); envie allow_partial: true para entregar só o disponível.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"finish\",\n  \"allow_partial\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cancelar",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/orders/{{order_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "orders",
+                    "{{order_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: admin.orders.cancel. Em pedido já retirado devolve a quantidade ao estoque.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"cancel\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Clientes",
+          "description": "Consulta e ativação de clientes.",
+          "item": [
+            {
+              "name": "Listar clientes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/clients",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "clients"
+                  ]
+                },
+                "description": "Permissão: admin.clients.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Resumo de clientes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/clients/summary",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "clients",
+                    "summary"
+                  ]
+                },
+                "description": "Permissão: admin.clients.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Detalhes do cliente",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/clients/{{client_id}}/details",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "clients",
+                    "{{client_id}}",
+                    "details"
+                  ]
+                },
+                "description": "Permissão: admin.clients.view. Dados e solicitações do cliente."
+              },
+              "response": []
+            },
+            {
+              "name": "Ativar/inativar cliente",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/clients/{{client_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "clients",
+                    "{{client_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: admin.clients.edit",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Configurações › Usuários",
+          "description": "Usuários administrativos. Permissão: admin.settings.users.manage.",
+          "item": [
+            {
+              "name": "Listar usuários",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users"
+                  ]
+                },
+                "description": "Permissão: admin.settings.users.manage"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar usuário",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users"
+                  ]
+                },
+                "description": "rule_ids: perfis do usuário. Só é possível conceder permissões que você possui. Guarda user_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"operador\",\n  \"email\": \"operador@almoxarifado.com\",\n  \"password\": \"Senha123\",\n  \"rule_ids\": [\n    \"{{rule_id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('user_id', String(v)); pm.collectionVariables.set('user_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Atualizar usuário",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/users/{{user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    "{{user_id}}"
+                  ]
+                },
+                "description": "Envie só os campos que mudam (password opcional).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"operador2@almoxarifado.com\",\n  \"rule_ids\": [\n    \"{{rule_id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Excluir usuário",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/users/{{user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "users",
+                    "{{user_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.settings.users.manage"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Configurações › Perfis",
+          "description": "Perfis de acesso (rules). Permissão: admin.settings.profiles.manage. Os perfis administrator e cliente são protegidos.",
+          "item": [
+            {
+              "name": "Listar perfis",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/rules",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "rules"
+                  ]
+                },
+                "description": "Permissão: admin.settings.profiles.manage"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar perfil",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/rules",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "rules"
+                  ]
+                },
+                "description": "permission_ids: permissões do perfil. Guarda rule_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Estoquista\",\n  \"description\": \"Consulta e movimenta estoque\",\n  \"permission_ids\": [\n    \"{{permission_id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('rule_id', String(v)); pm.collectionVariables.set('rule_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Atualizar perfil",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/rules/{{rule_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "rules",
+                    "{{rule_id}}"
+                  ]
+                },
+                "description": "Envie só os campos que mudam.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"Perfil atualizado\",\n  \"permission_ids\": [\n    \"{{permission_id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Excluir perfil",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/rules/{{rule_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "rules",
+                    "{{rule_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.settings.profiles.manage"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Configurações › Permissões",
+          "description": "Permissões. Permissão: admin.settings.permissions.manage. As permissões do sistema não podem ser renomeadas nem excluídas.",
+          "item": [
+            {
+              "name": "Listar permissões",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/permissions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "permissions"
+                  ]
+                },
+                "description": "Permissão: admin.settings.permissions.manage"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar permissão",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/permissions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "permissions"
+                  ]
+                },
+                "description": "Guarda permission_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"custom.relatorios.view\",\n  \"description\": \"Ver relatórios\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('permission_id', String(v)); pm.collectionVariables.set('permission_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Atualizar permissão",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/permissions/{{permission_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "permissions",
+                    "{{permission_id}}"
+                  ]
+                },
+                "description": "Envie só os campos que mudam.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"Ver relatórios gerenciais\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Excluir permissão",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/permissions/{{permission_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "permissions",
+                    "{{permission_id}}"
+                  ]
+                },
+                "description": "Permissão: admin.settings.permissions.manage"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Assistente de IA",
+          "description": "Assistente (Groq) somente leitura. Permissão: admin.dashboard.view; cada consulta interna respeita as permissões do usuário.",
+          "item": [
+            {
+              "name": "Status da IA",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/admin/ai/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "ai",
+                    "status"
+                  ]
+                },
+                "description": "Responde {enabled}: true quando GROQ_API_KEY está configurada no servidor."
+              },
+              "response": []
+            },
+            {
+              "name": "Conversar com o assistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/ai/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "ai",
+                    "chat"
+                  ]
+                },
+                "description": "Envie o histórico (até 12 mensagens, 1000 caracteres cada; a última deve ser do usuário). Perguntas fora do contexto do almoxarifado são recusadas. Responde {reply, suggestions, blocked}.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"O que está com estoque baixo?\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{admin_token}}",
+            "type": "string"
+          }
+        ]
+      }
     },
     {
-      "name": "Admin Endpoints",
+      "name": "Cliente",
+      "description": "Rotas do cliente (Bearer {{client_token}}).",
       "item": [
         {
-          "name": "List Products",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/products",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "products"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Product",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+          "name": "Perfil",
+          "description": "Dados do cliente logado.",
+          "item": [
+            {
+              "name": "Meu perfil e permissões",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "me"
+                  ]
+                },
+                "description": "Dados do cliente e lista de permissões."
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Sample Product\",\n  \"description\": \"Sample description\",\n  \"price\": 19.99\n}"
+              "response": []
             },
-            "url": {
-              "raw": "{{base_url}}/admin/products",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "products"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Product",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/products/{{product_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "products",
-                "{{product_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Product",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+            {
+              "name": "Ver perfil",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "profile"
+                  ]
+                },
+                "description": "Permissão: clients.profile.view"
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"price\": 24.99\n}"
+              "response": []
             },
-            "url": {
-              "raw": "{{base_url}}/admin/products/{{product_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "products",
-                "{{product_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Product",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/products/{{product_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "products",
-                "{{product_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Categories",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/categories",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Category",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+            {
+              "name": "Atualizar perfil",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "profile"
+                  ]
+                },
+                "description": "Permissão: clients.profile.edit. Para trocar a senha envie password e current_password.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Cliente Teste\",\n  \"phone\": \"(11) 91111-1111\",\n  \"photo_path\": null\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"New Category\",\n  \"description\": \"Category description\"\n}"
+              "response": []
             },
-            "url": {
-              "raw": "{{base_url}}/admin/categories",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "categories"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Category",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+            {
+              "name": "Upload de foto",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/upload",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "upload"
+                  ]
+                },
+                "description": "Permissão: clients.profile.edit. Campo \"file\". Responde {url} para usar em photo_path.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "Selecione o arquivo"
+                    }
+                  ]
+                }
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"description\": \"Updated category description\"\n}"
+              "response": []
             },
-            "url": {
-              "raw": "{{base_url}}/admin/categories/{{category_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "categories",
-                "{{category_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Delete Category",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/categories/{{category_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "categories",
-                "{{category_id}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Stock",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/stock",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "stock"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Stock Moves",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/stock/moves",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "stock",
-                "moves"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Stock Move",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+            {
+              "name": "Resumo do cliente",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/summary",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "summary"
+                  ]
+                },
+                "description": "Totais de solicitações do cliente."
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stock_id\": {{stock_id}},\n  \"quantity_change\": 10,\n  \"reason\": \"Restock\"\n}"
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Produtos",
+          "description": "Catálogo disponível para o cliente.",
+          "item": [
+            {
+              "name": "Listar produtos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/products",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "products"
+                  ]
+                },
+                "description": "Permissão: clients.products.list"
+              },
+              "response": []
             },
-            "url": {
-              "raw": "{{base_url}}/admin/stock/moves",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "stock",
-                "moves"
-              ]
-            }
-          }
-        },
-        {
-          "name": "List Orders",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/orders",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "orders"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Update Order Status",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+            {
+              "name": "Detalhar produto",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/products/{{product_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "products",
+                    "{{product_id}}"
+                  ]
+                },
+                "description": "Permissão: clients.products.view"
               },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/admin/orders/{{order_id}}/status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "orders",
-                "{{order_id}}",
-                "status"
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Carrinho",
+          "description": "Permissão: clients.cart.manage.",
+          "item": [
+            {
+              "name": "Listar carrinhos",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/carts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts"
+                  ]
+                },
+                "description": "O carrinho aberto tem status \"open\"."
+              },
+              "response": []
+            },
+            {
+              "name": "Criar carrinho",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/carts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts"
+                  ]
+                },
+                "description": "Guarda cart_id."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('cart_id', String(v)); pm.collectionVariables.set('cart_id', String(v)); } }"
+                    ]
+                  }
+                }
               ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"action\": \"approve\"\n}"
+            {
+              "name": "Adicionar item",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/carts/{{cart_id}}/items",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts",
+                    "{{cart_id}}",
+                    "items"
+                  ]
+                },
+                "description": "Mesmo produto soma na quantidade. Guarda cart_item_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product_id\": \"{{product_id}}\",\n  \"quantity\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().id; if (v !== undefined && v !== null) { pm.environment.set('cart_item_id', String(v)); pm.collectionVariables.set('cart_item_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Alterar quantidade do item",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/carts/{{cart_id}}/items/{{cart_item_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts",
+                    "{{cart_id}}",
+                    "items",
+                    "{{cart_item_id}}"
+                  ]
+                },
+                "description": "Quantidade limitada ao estoque.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Remover item",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/carts/{{cart_id}}/items/{{cart_item_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts",
+                    "{{cart_id}}",
+                    "items",
+                    "{{cart_item_id}}"
+                  ]
+                },
+                "description": "Remove o item do carrinho."
+              },
+              "response": []
+            },
+            {
+              "name": "Finalizar (gerar solicitação)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/carts/{{cart_id}}/checkout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "carts",
+                    "{{cart_id}}",
+                    "checkout"
+                  ]
+                },
+                "description": "Cria a solicitação com o motivo informado. Guarda order_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Material para a aula de desenho\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().order_id; if (v !== undefined && v !== null) { pm.environment.set('order_id', String(v)); pm.collectionVariables.set('order_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
             }
-          }
+          ]
+        },
+        {
+          "name": "Solicitações",
+          "description": "Pedidos do próprio cliente.",
+          "item": [
+            {
+              "name": "Listar minhas solicitações",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/orders",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "orders"
+                  ]
+                },
+                "description": "Permissão: clients.orders.list"
+              },
+              "response": []
+            },
+            {
+              "name": "Detalhar solicitação",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/orders/{{order_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "orders",
+                    "{{order_id}}"
+                  ]
+                },
+                "description": "Permissão: clients.orders.view"
+              },
+              "response": []
+            },
+            {
+              "name": "Criar solicitação direta",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/orders",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "orders"
+                  ]
+                },
+                "description": "Permissão: clients.products.request. Alternativa ao carrinho. Guarda order_id.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"product_id\": \"{{product_id}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code < 300) { const v = pm.response.json().order_id; if (v !== undefined && v !== null) { pm.environment.set('order_id', String(v)); pm.collectionVariables.set('order_id', String(v)); } }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Cancelar solicitação",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/orders/{{order_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "orders",
+                    "{{order_id}}",
+                    "status"
+                  ]
+                },
+                "description": "Permissão: clients.orders.cancel. Apenas solicitações pendentes.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"cancel\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Assistente de IA",
+          "description": "Assistente (Groq) para descobrir produtos disponíveis e montar a solicitação. Permissão: clients.products.list.",
+          "item": [
+            {
+              "name": "Status da IA",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/client/ai/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "ai",
+                    "status"
+                  ]
+                },
+                "description": "Responde {enabled}."
+              },
+              "response": []
+            },
+            {
+              "name": "Conversar com o assistente",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/ai/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "ai",
+                    "chat"
+                  ]
+                },
+                "description": "Responde {reply, suggestions, blocked}. suggestions traz produtos sugeridos ({product_id, name, quantity, stock, price}); nada é adicionado ao carrinho automaticamente.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Preciso de material para uma aula de desenho com 10 alunos\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Sugerir motivo da solicitação",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/client/ai/reason",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "client",
+                    "ai",
+                    "reason"
+                  ]
+                },
+                "description": "Permissão: clients.cart.manage. Usa os itens do carrinho aberto (ou do cart_id) e um contexto opcional. Responde {reason}.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"cart_id\": \"{{cart_id}}\",\n  \"context\": \"aula de desenho\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
         }
-      ]
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{client_token}}",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost/api",
+      "type": "string"
+    },
+    {
+      "key": "admin_username",
+      "value": "admin",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@almoxarifado.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_email",
+      "value": "client@example.com",
+      "type": "string"
+    },
+    {
+      "key": "client_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "stock_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "move_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "import_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cart_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "cart_item_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "rule_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "permission_id",
+      "value": "1",
+      "type": "string"
     }
   ]
 }
