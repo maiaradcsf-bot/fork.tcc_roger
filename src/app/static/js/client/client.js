@@ -697,6 +697,33 @@ window.adicionarRequisicao = async function(productId) {
   }
 }
 
+// Used by the AI assistant: adds a suggested product with the suggested quantity after the client clicks "Adicionar"
+window.adicionarSugestaoIA = async function(productId, quantity, productName) {
+  const token = getClientToken();
+  if (!token) {
+    showAlert('warning', 'Autenticação de cliente não encontrada. Faça cadastro/login.');
+    return false;
+  }
+  try {
+    const cart = await getOrCreateActiveCart(token);
+    const resp = await fetch(`/api/client/carts/${cart.id}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ product_id: productId, quantity })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => null);
+      throw new Error(err?.error || `Erro ${resp.status}`);
+    }
+    await fetchOpenCart(token);
+    showAlert('success', `${productName} foi adicionado ao carrinho.`);
+    return true;
+  } catch (err) {
+    showAlert('danger', `Falha ao adicionar ${productName}: ${err.message}`);
+    return false;
+  }
+}
+
 function renderCartSummary(cart) {
   const body = document.getElementById('clientCartItemsBody');
   const totalEl = document.getElementById('clientCartTotal');

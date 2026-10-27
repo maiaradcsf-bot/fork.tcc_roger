@@ -42,6 +42,9 @@ services:
       - DB_NAME=${DB_NAME}
       # Optional: password of the initial admin account created by the seed (default dev@123)
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      # Optional: Groq API key for the AI assistant (empty = assistant hidden)
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-}
     expose:
       - "5000"
     depends_on:

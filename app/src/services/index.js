@@ -4,6 +4,7 @@ import * as adminStockService from './admin/stockService.js';
 import * as adminOrdersService from './admin/ordersService.js';
 import * as adminSettingsService from './admin/settingsService.js';
 import * as clientService from './clientService.js';
+import * as aiService from './aiService.js';
 
 export { ApiError } from '../api/ApiError.js';
 export { ROLES, getToken, hasToken, clearAllTokens } from '../api/tokenStorage.js';
@@ -19,6 +20,7 @@ export const api = {
     settings: adminSettingsService,
   },
   client: clientService,
+  ai: aiService,
 };
 
-export { authService, adminCatalogService, adminStockService, adminOrdersService, adminSettingsService, clientService };
+export { authService, adminCatalogService, adminStockService, adminOrdersService, adminSettingsService, clientService, aiService };

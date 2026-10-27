@@ -6,8 +6,9 @@ import { ActionMenu } from '../../components/list.js';
 import { Button, ButtonRow, Card, EmptyState, Field, Loading, Muted, Screen } from '../../components/ui.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { useCart } from '../../context/CartContext.js';
+import { useAiEnabled } from '../../hooks/useAiEnabled.js';
 import { useAction } from '../../hooks/useApi.js';
-import { api } from '../../services/index.js';
+import { ROLES, api } from '../../services/index.js';
 import { colors, radius, spacing } from '../../theme/index.js';
 import { formatPrice } from '../../utils/format.js';
 
@@ -18,6 +19,8 @@ export default function CartScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState({});
   const [reason, setReason] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const aiEnabled = useAiEnabled(ROLES.CLIENT);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,6 +65,19 @@ export default function CartScreen({ navigation }) {
       await refreshCart();
       Alert.alert('Sucesso', 'Produto removido do carrinho.');
     });
+  }
+
+  async function suggestReason() {
+    setSuggesting(true);
+    try {
+      const data = await api.ai.suggestReason({ cartId: cart?.id, context: reason.trim().slice(0, 500) || undefined });
+      if (data?.reason) setReason(data.reason);
+    } catch (error) {
+      if (error?.isUnauthorized) handleError(error);
+      else Alert.alert('Atenção', `Não foi possível sugerir o motivo: ${error.message}`);
+    } finally {
+      setSuggesting(false);
+    }
   }
 
   function confirmRequest() {
@@ -129,6 +145,9 @@ export default function CartScreen({ navigation }) {
           <Text style={styles.total}>{formatPrice(total)}</Text>
         </View>
         <Field label="Motivo" value={reason} onChangeText={setReason} multiline placeholder="Informe o motivo da solicitação (obrigatório)" />
+        {aiEnabled && items.length ? (
+          <Button title="Sugerir motivo com IA" icon="sparkles-outline" variant="outlinePrimary" small loading={suggesting} disabled={busy} onPress={suggestReason} />
+        ) : null}
         {blocked ? <Muted>Ajuste as quantidades acima do estoque antes de confirmar.</Muted> : null}
         <ButtonRow>
           <Button title="Fechar" variant="outlineSecondary" onPress={() => navigation.goBack()} style={styles.flex} />

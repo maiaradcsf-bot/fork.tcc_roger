@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { useAuth } from '../context/AuthContext.js';
+import { useAiEnabled } from '../hooks/useAiEnabled.js';
+import AdminAssistantScreen from '../screens/admin/AssistantScreen.js';
 import CategoriesScreen from '../screens/admin/CategoriesScreen.js';
 import CategoryFormScreen from '../screens/admin/CategoryFormScreen.js';
 import ClientDetailScreen from '../screens/admin/ClientDetailScreen.js';
@@ -24,20 +27,31 @@ import StockMoveFormScreen from '../screens/admin/StockMoveFormScreen.js';
 import StockMovesScreen from '../screens/admin/StockMovesScreen.js';
 import UserFormScreen from '../screens/admin/UserFormScreen.js';
 import UsersScreen from '../screens/admin/UsersScreen.js';
-import { colors } from '../theme/index.js';
+import { ROLES } from '../services/index.js';
+import { colors, spacing } from '../theme/index.js';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const TAB_ICONS = { Dashboard: 'speedometer-outline', Orders: 'clipboard-outline', Products: 'cube-outline', More: 'menu-outline' };
 
-function AdminTabs() {
+function AssistantButton({ navigation }) {
+  return (
+    <Pressable onPress={() => navigation.navigate('Assistant')} style={styles.headerButton} accessibilityRole="button" accessibilityLabel="Assistente de IA">
+      <Ionicons name="sparkles-outline" size={22} color={colors.primary} />
+    </Pressable>
+  );
+}
+
+function AdminTabs({ navigation }) {
   const { hasPermission } = useAuth();
+  const aiEnabled = useAiEnabled(ROLES.ADMIN) && hasPermission('admin.dashboard.view');
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarActiveTintColor: colors.primary,
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
+        headerRight: aiEnabled ? () => <AssistantButton navigation={navigation} /> : undefined,
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Dashboard' }} />
@@ -69,6 +83,11 @@ export default function AdminNavigator() {
       <Stack.Screen name="PermissionForm" component={PermissionFormScreen} options={{ title: 'Permissão' }} />
       <Stack.Screen name="Profiles" component={ProfilesScreen} options={{ title: 'Perfis' }} />
       <Stack.Screen name="ProfileForm" component={ProfileFormScreen} options={{ title: 'Perfil' }} />
+      <Stack.Screen name="Assistant" component={AdminAssistantScreen} options={{ title: 'Assistente' }} />
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  headerButton: { marginRight: spacing.md, padding: spacing.xs },
+});
