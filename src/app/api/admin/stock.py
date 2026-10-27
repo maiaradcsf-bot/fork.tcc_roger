@@ -78,7 +78,9 @@ def admin_delete_all_stock():
         return error, status
 
     try:
-        # Apaga movimentos primeiro para evitar violação de FK
+        # Apaga movimentos primeiro para evitar violação de FK; estornos apontam para a
+        # movimentação original, então o vínculo é desfeito antes
+        db.session.query(StockMove).update({StockMove.original_move_id: None}, synchronize_session=False)
         deleted_moves = db.session.query(StockMove).delete(synchronize_session=False)
         deleted_stocks = db.session.query(Stock).delete(synchronize_session=False)
         db.session.commit()

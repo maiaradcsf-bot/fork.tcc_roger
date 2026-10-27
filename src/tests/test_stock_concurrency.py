@@ -685,3 +685,15 @@ def test_unrelated_integrity_error_is_409_but_not_a_stock_conflict(env, monkeypa
     resp = admin(client, 'POST', '/categories', {'name': 'Duplicada'})
     assert resp.status_code == 409
     assert resp.get_json()['code'] == 'integrity_error'
+
+
+def test_delete_all_stock_with_reversed_moves(env):
+    """A reversal points to its original move (self-referencing FK); wiping the stock must still work."""
+    p = env['product']('A', 5)
+    stock_id = env['read'](lambda: Stock.query.filter_by(product_id=p).one().id)
+    client = env['app'].test_client()
+    move_id = admin(client, 'POST', '/stock/moves', {'stock_id': stock_id, 'quantity_change': 3}).get_json()['id']
+    assert admin(client, 'POST', f'/stock/moves/{move_id}/revert').status_code == 201
+    resp = admin(client, 'DELETE', '/stock')
+    assert resp.status_code == 200
+    assert env['read'](lambda: (Stock.query.count(), StockMove.query.count())) == (0, 0)
