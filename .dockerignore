@@ -8,5 +8,7 @@
 **/*.pyc
 **/node_modules
 **/.pytest_cache
-src/app/tmp_imports
-src/app/static/uploads
+src/web/app/tmp_imports
+src/web/app/static/uploads
+# Mobile app (Expo): not part of the server image
+src/app

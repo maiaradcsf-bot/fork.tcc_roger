@@ -1,5 +1,5 @@
 // Runs the real order/stock action handlers from admin.js against mocked API responses.
-// Run with: node --test src/tests/frontend/
+// Run with: node --test src/web/tests/frontend/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

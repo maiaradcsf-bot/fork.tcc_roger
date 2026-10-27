@@ -1,6 +1,14 @@
 # Almoxarifado — Gestão de Estoque (TCC SESI/SENAI)
 
-Aplicação Flask + MySQL com interface web (HTML/CSS/JS) e API REST em JSON para o app mobile.
+Aplicação Flask + MySQL com interface web (HTML/CSS/JS), API REST em JSON e app mobile (Expo).
+
+## Estrutura
+
+| Pasta | Conteúdo |
+|---|---|
+| `src/web/` | Backend Flask: API (`app/api`), frontend web (`app/templates`, `app/static`), migrações, seeds e testes |
+| `src/app/` | App mobile em React Native (Expo) para Android e iOS |
+| `.docker/` | `requirements.txt`, `entrypoint.sh` e configuração do nginx usados pelo `Dockerfile`/`docker-compose.yml` |
 
 ## Subir o ambiente
 
@@ -27,7 +35,7 @@ Variáveis do container `app`: `RUN_MIGRATIONS=0` e `RUN_SEED=0` pulam essas eta
 
 ```sh
 docker exec <container-de-testes> python -m pytest tests -q      # SQLite em memória + MySQL tcc_test (concorrência)
-cd src/tests/frontend && npm ci && cd - && node --test src/tests/frontend/
+cd src/web/tests/frontend && npm ci && cd - && node --test src/web/tests/frontend/
 ```
 
 Os testes de concorrência usam somente o banco `tcc_test` e são ignorados quando ele não está acessível.
@@ -98,4 +106,12 @@ nem altera ou exclui contas e perfis com mais permissões que as suas; ninguém 
 | PATCH | `/api/client/orders/<id>/status` | `{action: cancel}` (somente pedido pendente) | `clients.orders.cancel` |
 | GET | `/api/client/summary` | Resumo dos pedidos | `clients.orders.list` |
 
-A coleção `postman_collection.json` traz exemplos das principais rotas.
+A coleção `postman_collection.json` (com `postman_environment.json`) traz todas as rotas da API.
+
+## App mobile
+
+```sh
+cd src/app
+cp .env.example .env.local     # EXPO_PUBLIC_API_HOST=http://<ip-do-servidor>
+npx expo start                 # requer Node 22; abra no Expo Go pelo QR code
+```

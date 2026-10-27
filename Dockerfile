@@ -8,7 +8,7 @@ WORKDIR /app
 COPY .docker/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-COPY src/ /app/
+COPY src/web/ /app/
 COPY .docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && mkdir -p /app/app/static/uploads /app/app/tmp_imports

@@ -1,6 +1,6 @@
 // Renders the real admin/client/auth scripts in a DOM (jsdom, inline handlers enabled) with
 // malicious API data and checks it ends up as text: no injected elements, no executed code.
-// Setup once: (cd src/tests/frontend && npm install)   Run: node --test src/tests/frontend/
+// Setup once: (cd src/web/tests/frontend && npm install)   Run: node --test src/web/tests/frontend/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
